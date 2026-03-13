@@ -1,61 +1,88 @@
-# 🎾 CourtFinder — Sydney Tennis Court Booking Platform
+# your·rock·is·coming — Sydney Tennis Platform
 
-A full-stack web app for finding, comparing, and booking tennis courts across Sydney's North Shore.
+Find and book tennis courts across Sydney. One place to discover venues, check weather, and book — rain or shine.
 
-## Tech Stack
+---
 
-- **Frontend:** Vanilla HTML/CSS/JS + Leaflet.js (maps)
-- **Backend:** Node.js + Express
-- **Database:** SQLite (via better-sqlite3)
-- **Weather:** OpenWeatherMap API (free tier)
-- **Map tiles:** CARTO Light
+## Frontend (React) — Demo
 
-## Project Structure
+The main demo is a **React + Vite** SPA with map, filters, quick book, and 7-day weather.
 
-```
-courtfinder/
-├── server.js              # Express API server
-├── package.json
-├── db/
-│   ├── index.js           # Database access layer
-│   ├── seed.js            # Schema + seed data
-│   └── courtfinder.db     # SQLite database (auto-created)
-├── public/
-│   └── index.html         # Frontend SPA
-└── README.md
-```
+### Tech stack
 
-## Quick Start
+- **React 18** + **TypeScript** + **Vite 8**
+- **Tailwind CSS** — design tokens (Lora, Plus Jakarta Sans, sand/bark/green palette)
+- **Leaflet** + **react-leaflet** — interactive Sydney map
+- **Open-Meteo API** — 7-day weather (no API key)
+- **react-hot-toast** — notifications
+- **date-fns** — calendar and dates
+
+### Quick start
 
 ```bash
-# 1. Install dependencies
+cd frontend
 npm install
-
-# 2. Initialize database with seed data
-npm run seed
-
-# 3. Start the server
-npm start
-
-# Server runs at http://localhost:3000
+npm run dev
 ```
 
-## Weather API Setup (Optional)
+Open **http://localhost:5173**
 
-To enable real weather data, get a free API key from [OpenWeatherMap](https://openweathermap.org/api):
+### Features (demo)
+
+- **Discover** — Hero search, filter chips (surface, indoor/outdoor), venue cards with summary, stats row
+- **Map** — Interactive map; click markers to select venues; popup with “View details”
+- **Venue cards** — “View detail” (full venue page) and “Quick book” (modal: date + time slot + 7-day weather)
+- **Book by calendar** (`/book`) — Pick venue, date from month calendar, then time slot; 7-day weather shown
+- **7-day weather** — Sydney forecast in Hero, Quick book modal, and Calendar book; rain warning when precipitation is likely
+- **My Bookings** (`/bookings`) — List and cancel bookings (stored in `localStorage`)
+- **Profile** (`/profile`) — Optional email for confirmations
+- **Toasts** — Success messages on book and profile save
+
+### Frontend structure
+
+```
+frontend/
+├── index.html
+├── src/
+│   ├── App.tsx              # Routes
+│   ├── main.tsx
+│   ├── styles.css           # Tailwind + tokens
+│   ├── components/          # Nav, Hero, VenueCard, VenueMap, QuickBookModal, WeatherWidget, …
+│   ├── pages/               # Home, MapPage, BookingsPage, ProfilePage, CalendarBookPage, VenueDetail, BookCourt
+│   ├── data/                # venues.ts, booking.ts, weather.ts
+│   ├── hooks/               # useFilteredVenues
+│   └── context/             # BookingContext (bookings + guest email)
+├── package.json
+├── tailwind.config.js
+└── vite.config.ts
+```
+
+---
+
+## Backend (optional)
+
+A **Node.js + Express + SQLite** API exists at repo root for a full-stack setup (courts CRUD, bookings, weather proxy).
+
+### Quick start (backend)
 
 ```bash
-# Set environment variable before starting
-OPENWEATHER_API_KEY=your_key_here npm start
-
-# Or export it
-export OPENWEATHER_API_KEY=your_key_here
+npm install
+npm run seed
 npm start
+# Server at http://localhost:3000
 ```
 
-Without a key, the app works normally — weather section just shows "Weather unavailable".
+### Backend structure
 
-## API Endpoints
+- **server.js** — Express API
+- **db/** — SQLite (better-sqlite3), schema, seed
+- **public/** — Static assets
+
+See API endpoints and schema in the sections below if you need to connect the frontend to this backend.
+
+---
+
+## API Endpoints (backend)
 
 ### Courts
 
@@ -65,13 +92,7 @@ Without a key, the app works normally — weather section just shows "Weather un
 | GET | `/api/courts/:id` | Get single court |
 | GET | `/api/courts/:id/availability?date=YYYY-MM-DD` | Get availability grid |
 
-**Filter params for `/api/courts`:**
-- `q` — search name/suburb/address
-- `surface` — `hard` or `synthetic_grass`
-- `lights` — `1` for courts with lights
-- `parking` — `1` for courts with parking
-- `min_courts` — minimum number of courts
-- `suburb` — filter by suburb
+**Filter params for `/api/courts`:** `q`, `surface`, `lights`, `parking`, `min_courts`, `suburb`
 
 ### Bookings
 
@@ -81,26 +102,6 @@ Without a key, the app works normally — weather section just shows "Weather un
 | GET | `/api/bookings?email=xxx` | Get bookings by email |
 | DELETE | `/api/bookings/:id` | Cancel a booking |
 
-**POST `/api/bookings` body:**
-```json
-{
-  "court_id": 1,
-  "court_number": 1,
-  "date": "2026-03-15",
-  "start_hour": 9,
-  "end_hour": 11,
-  "booker_name": "Alice Wang",
-  "booker_phone": "0412345678",
-  "booker_email": "alice@example.com",
-  "players": 2
-}
-```
-
-**DELETE `/api/bookings/:id` body:**
-```json
-{ "email": "alice@example.com" }
-```
-
 ### Weather
 
 | Method | Endpoint | Description |
@@ -108,31 +109,11 @@ Without a key, the app works normally — weather section just shows "Weather un
 | GET | `/api/weather/:courtId?date=YYYY-MM-DD` | Weather for one court |
 | GET | `/api/weather/bulk?date=YYYY-MM-DD` | Weather for all courts |
 
-## Features
+**Weather API:** Optional OpenWeatherMap key via `OPENWEATHER_API_KEY`. Without it, weather responses show “Weather unavailable”.
 
-- 🗺 **Three-panel layout:** Filters → Court List → Interactive Map
-- 🔍 **Search & Filter:** By name, suburb, surface, lights, parking, court count
-- 📅 **Availability Calendar:** Visual timeline for each court, per day
-- 📝 **Booking System:** Full form with conflict detection
-- 🚫 **Conflict Prevention:** Server-side check prevents double-booking
-- 📋 **My Bookings:** View and cancel bookings by email
-- ☁️ **Live Weather:** Real-time weather per court location (with caching)
-- 💰 **Dynamic Pricing:** Auto-calculates lights fee for evening bookings
-- 📱 **Responsive:** Works on desktop and tablet
+---
 
-## Database Schema
+## UniHack / project vision
 
-### `courts`
-Stores all tennis court venues with location, facilities, and pricing.
-
-### `bookings`
-Stores all reservations. Has `status` field (`confirmed` / `cancelled`) for soft-delete cancellation.
-
-### `weather_cache`
-Caches OpenWeatherMap responses (3-hour TTL) to avoid excessive API calls.
-
-## Seeded Data
-
-- **12 courts** across Gordon, Pymble, Killara, St Ives, and Lindfield
-- **~200 sample bookings** spread across the next 5 days
-- All prices are $22/hr with $8/hr lights surcharge for evening bookings
+- **Vision:** One platform for Sydney tennis — venues, coaches, booking, opening hours, weather-aware flows.
+- **Roadmap:** See project docs in `docs/` and the original vision in the repo history.

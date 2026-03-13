@@ -1,5 +1,6 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
+import { Nav } from '../components/Nav'
 import { getVenueById } from '../data/venues'
 import { getTimeSlotsForDate, type TimeSlot } from '../data/booking'
 
@@ -28,10 +29,11 @@ export function BookCourt() {
 
   if (!venue) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Venue not found.</p>
-          <Link to="/" className="mt-4 inline-block text-primary font-medium hover:underline">
+      <div className="min-h-screen bg-sand flex flex-col">
+        <Nav />
+        <div className="flex-1 flex items-center justify-center text-center">
+          <p className="text-bark-lt">Venue not found.</p>
+          <Link to="/" className="mt-4 inline-block text-g600 font-medium hover:underline">
             ← Back to venues
           </Link>
         </div>
@@ -55,35 +57,29 @@ export function BookCourt() {
 
   if (confirmed && selectedSlot) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-md mx-auto text-center">
-          <h1 className="text-2xl font-medium text-slate-900 mb-6">
-            Booking confirmed
-          </h1>
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm text-left">
-            <p className="font-medium text-slate-900">{venue.name}</p>
-            <p className="text-gray-600 mt-1">
-              {formatDateDisplay(dateObj)} · {selectedSlot.start} – {selectedSlot.end}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">{selectedSlot.courtId}</p>
-            <p className="text-sm text-gray-500 mt-4">
-              A confirmation has been sent to your email (demo). Payment can be
-              collected at the venue or via link.
-            </p>
-          </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link
-              to={`/venue/${venue.id}`}
-              className="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-            >
-              Back to venue
-            </Link>
-            <Link
-              to="/"
-              className="px-5 py-2.5 bg-primary text-white font-medium rounded-lg hover:opacity-90"
-            >
-              Find another court
-            </Link>
+      <div className="min-h-screen bg-sand flex flex-col">
+        <Nav />
+        <div className="flex-1 py-12 px-4">
+          <div className="max-w-md mx-auto text-center">
+            <h1 className="font-lora text-2xl font-semibold text-bark mb-6">Booking confirmed</h1>
+            <div className="bg-white rounded-[20px] border border-[var(--border)] p-6 text-left">
+              <p className="font-semibold text-bark">{venue.name}</p>
+              <p className="text-bark-lt mt-1">
+                {formatDateDisplay(dateObj)} · {selectedSlot.start}–{selectedSlot.end}
+              </p>
+              <p className="text-sm text-bark-lt mt-1">{selectedSlot.courtId}</p>
+              <p className="text-sm text-bark-lt mt-4">
+                A confirmation has been sent to your email (demo). Payment can be collected at the venue or via link.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link to={`/venue/${venue.id}`} className="px-5 py-2.5 border border-[var(--border)] rounded-xl text-bark font-medium hover:bg-g50">
+                Back to venue
+              </Link>
+              <Link to="/" className="px-5 py-2.5 bg-g600 text-white font-semibold rounded-xl hover:bg-g800">
+                Find another court
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -91,24 +87,25 @@ export function BookCourt() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 text-sm text-gray-600">
-          <Link to="/" className="text-primary hover:underline">Venues</Link>
+    <div className="min-h-screen bg-sand flex flex-col">
+      <Nav />
+      <nav className="bg-white border-b border-[var(--border)]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 text-sm text-bark-lt">
+          <Link to="/" className="text-g600 hover:underline">Venues</Link>
           <span className="mx-2">/</span>
-          <Link to={`/venue/${venue.id}`} className="text-primary hover:underline">
+          <Link to={`/venue/${venue.id}`} className="text-g600 hover:underline">
             {venue.name}
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-gray-900">Book</span>
+          <span className="text-bark">Book</span>
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-medium text-slate-900 mb-1">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 flex-1">
+        <h1 className="font-lora text-2xl font-semibold text-bark mb-1">
           Book a court — {venue.name}
         </h1>
-        <p className="text-gray-600 mb-8">{venue.priceRange}</p>
+        <p className="text-bark-lt mb-8">{venue.priceRange}</p>
 
         <section className="mb-8">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -141,8 +138,8 @@ export function BookCourt() {
                   onClick={() => setSelectedSlot(slot)}
                   className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
                     selectedSlot?.id === slot.id
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      ? 'border-g600 bg-g600 text-white'
+                      : 'border-[var(--border)] bg-white text-bark hover:bg-g50'
                   }`}
                 >
                   {slot.start} – {slot.end} · {slot.courtId}
@@ -157,7 +154,7 @@ export function BookCourt() {
             <button
               type="button"
               onClick={handleConfirm}
-              className="px-6 py-3 bg-primary text-white font-medium rounded-lg hover:opacity-90"
+              className="px-6 py-3 bg-g600 text-white font-semibold rounded-xl hover:bg-g800"
             >
               Confirm booking
             </button>
@@ -166,7 +163,7 @@ export function BookCourt() {
 
         <Link
           to={`/venue/${venue.id}`}
-          className="text-sm text-gray-600 hover:text-primary"
+          className="text-sm text-bark-lt hover:text-g600"
         >
           ← Back to venue
         </Link>

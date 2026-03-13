@@ -2,17 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Figma design tokens */
 :root {
-  --primary: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --border: rgba(0, 0, 0, 0.1);
-  --radius: 0.625rem;
+  --sand: #F9F6EE;
+  --bark: #4a3728;
+  --bark-lt: #7a6255;
+  --g50: #EAF3DE;
+  --g600: #3B6D11;
+  --g800: #27500A;
+  --border: #e8e2d8;
 }
 
-/* Leaflet needs explicit height and we load its CSS in main */
+body {
+  @apply bg-sand text-bark font-sans antialiased;
+}
+
 .leaflet-container {
   font-family: inherit;
+}
+
+/* Toast overrides to match design */
+.toast-custom {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(74, 55, 40, 0.15) !important;
 }
