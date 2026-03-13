@@ -4,6 +4,7 @@ node_modules/
 # Builds
 frontend/dist/
 frontend/.vite/
+frontend/tsconfig.tsbuildinfo
 
 # Logs
 npm-debug.log*

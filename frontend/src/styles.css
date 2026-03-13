@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Figma design tokens */
+:root {
+  --primary: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --border: rgba(0, 0, 0, 0.1);
+  --radius: 0.625rem;
+}
+
+/* Leaflet needs explicit height and we load its CSS in main */
+.leaflet-container {
+  font-family: inherit;
+}
