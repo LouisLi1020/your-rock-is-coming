@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CourtFinder · Sydney Tennis Courts</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --cream:#FAF9F6;--cream-dark:#F2F0EB;--white:#FFFFFF;
+  --ink:#1A1A1A;--ink-soft:#3D3D3D;--ink-muted:#8A8A8A;--ink-faint:#B5B5B5;
+  --border:#E8E6E1;--border-light:#F0EDE8;
+  --accent:#C8E632;--accent-hover:#B8D42A;--accent-dim:rgba(200,230,50,0.15);--accent-text:#5A6B00;
+  --green:#2DB87A;--green-dim:rgba(45,184,122,0.1);--green-text:#1A7A4F;
+  --warning:#E8A830;--warning-dim:rgba(232,168,48,0.1);
+  --danger:#E05A5A;
+  --booked-stripe:repeating-linear-gradient(135deg,rgba(224,90,90,0.12),rgba(224,90,90,0.12) 3px,rgba(224,90,90,0.04) 3px,rgba(224,90,90,0.04) 6px);
+  --radius:14px;--radius-sm:10px;--radius-xs:6px;--radius-pill:50px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.03);
+  --shadow:0 4px 16px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.08),0 4px 12px rgba(0,0,0,0.04);
+  --font:'Outfit',-apple-system,sans-serif;
+  --font-display:'Fraunces',Georgia,serif;
+}
+body{font-family:var(--font);background:var(--cream);color:var(--ink);height:100vh;overflow:hidden;}
+.app{display:flex;height:100vh;}
+
+/* LEFT */
+.panel-left{width:280px;min-width:280px;height:100vh;display:flex;flex-direction:column;background:var(--white);border-right:1px solid var(--border);z-index:10;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.panel-left::-webkit-scrollbar{width:4px;}.panel-left::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+/* MID */
+.panel-mid{width:360px;min-width:360px;height:100vh;display:flex;flex-direction:column;background:var(--cream);border-right:1px solid var(--border);z-index:5;}
+/* RIGHT */
+.panel-right{flex:1;position:relative;}
+
+/* Brand */
+.brand-bar{padding:20px 20px 16px;border-bottom:1px solid var(--border-light);}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-logo{width:38px;height:38px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 2px 8px rgba(200,230,50,0.25);}
+.brand-text{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.brand-text span{color:var(--green);}
+.brand-sub{font-size:10px;font-weight:500;color:var(--ink-muted);text-transform:uppercase;letter-spacing:1.2px;margin-top:-1px;}
+
+/* Search */
+.search-section{padding:16px 20px;}
+.search-bar{width:100%;display:flex;align-items:center;gap:8px;background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;transition:all 0.2s;}
+.search-bar:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim);background:var(--white);}
+.search-bar svg{color:var(--ink-muted);flex-shrink:0;}
+.search-bar input{flex:1;background:none;border:none;color:var(--ink);font-size:13px;font-family:var(--font);outline:none;}
+.search-bar input::placeholder{color:var(--ink-faint);}
+
+/* Filters */
+.filters-block{padding:0 20px 16px;}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.clear-btn{font-size:11px;color:var(--green);background:none;border:none;cursor:pointer;font-family:var(--font);font-weight:500;opacity:0;transition:opacity 0.2s;}
+.clear-btn.visible{opacity:1;}.clear-btn:hover{text-decoration:underline;}
+.filter-chips{display:flex;flex-direction:column;gap:6px;}
+.chip{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--ink-soft);font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;transition:all 0.15s;user-select:none;width:100%;text-align:left;}
+.chip:hover{border-color:var(--ink-faint);background:var(--cream-dark);}
+.chip.on{background:var(--accent-dim);border-color:var(--accent-hover);color:var(--accent-text);font-weight:600;}
+.chip-icon{font-size:15px;width:20px;text-align:center;}
+
+.sort-block{padding:0 20px 16px;}
+.sort-select{width:100%;padding:9px 32px 9px 14px;background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--ink-soft);font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.divider{height:1px;background:var(--border-light);margin:4px 20px 16px;}
+
+/* Weather bar */
+.weather-bar{padding:0 20px 16px;}
+.weather-card{background:linear-gradient(135deg,#E8F8FF 0%,#F0FAFE 100%);border:1.5px solid rgba(96,165,250,0.2);border-radius:var(--radius);padding:14px 16px;}
+.weather-card .wt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4A90B8;margin-bottom:8px;}
+.weather-main{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.weather-icon{font-size:28px;}
+.weather-temp{font-size:20px;font-weight:700;color:var(--ink);}
+.weather-temp small{font-size:13px;font-weight:400;color:var(--ink-muted);}
+.weather-desc{font-size:12px;color:var(--ink-muted);text-transform:capitalize;margin-bottom:6px;}
+.weather-details{display:flex;gap:12px;font-size:11px;color:var(--ink-muted);}
+.weather-details span{display:flex;align-items:center;gap:3px;}
+.weather-rain-high{color:#E8A830;font-weight:600;}
+
+/* Recommendation */
+.rec-section{padding:0 20px 20px;}
+.rec-card{background:linear-gradient(135deg,#F0FAF2 0%,#FAFFF0 100%);border:1.5px solid rgba(45,184,122,0.2);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;}
+.rec-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:var(--accent);opacity:0.12;border-radius:50%;}
+.rec-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:10px;background:rgba(45,184,122,0.1);padding:4px 10px;border-radius:var(--radius-pill);}
+.rec-name{font-size:16px;font-weight:700;line-height:1.3;margin-bottom:4px;}
+.rec-sub{font-size:12px;color:var(--ink-muted);margin-bottom:12px;line-height:1.4;}
+.rec-stats{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.rec-stat{font-size:11px;padding:4px 8px;border-radius:var(--radius-xs);background:var(--white);border:1px solid var(--border-light);color:var(--ink-soft);font-weight:500;}
+.rec-price{font-size:20px;font-weight:800;color:var(--green);margin-bottom:12px;}
+.rec-price small{font-size:12px;font-weight:400;color:var(--ink-muted);}
+.rec-book-btn{width:100%;padding:10px;text-align:center;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.rec-book-btn:hover{opacity:0.9;transform:translateY(-1px);}
+
+/* My Bookings link */
+.my-bookings-link{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:0 20px 16px;padding:10px;
+  background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--ink-soft);
+  cursor:pointer;transition:all 0.15s;text-decoration:none;
+}
+.my-bookings-link:hover{border-color:var(--green);color:var(--green);}
+
+/* MID — list */
+.list-header{padding:16px 18px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.list-title{font-size:14px;font-weight:600;}
+.list-count{font-size:13px;color:var(--ink-muted);}.list-count b{color:var(--ink);font-weight:700;}
+.court-list{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.court-list::-webkit-scrollbar{width:5px;}.court-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+.court-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:all 0.22s;}
+.court-card:hover{border-color:var(--accent-hover);box-shadow:var(--shadow);transform:translateY(-1px);}
+.court-card.active{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim),var(--shadow);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.c-name{font-size:14px;font-weight:600;line-height:1.3;flex:1;margin-right:8px;}
+.c-suburb{font-size:10px;font-weight:600;padding:2px 8px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--ink-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px;}
+.c-address{font-size:11.5px;color:var(--ink-muted);margin-bottom:8px;}
+.c-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.t{font-size:10px;padding:3px 7px;border-radius:var(--radius-xs);font-weight:500;display:inline-flex;align-items:center;gap:3px;}
+.t-surface{background:#EEF0FF;color:#4F5AC7;}.t-synth{background:#FFF4E0;color:#A67B00;}.t-courts{background:var(--green-dim);color:var(--green-text);}.t-lights{background:#FFF8E1;color:#B8860B;}.t-nolights{background:var(--cream);color:var(--ink-faint);}.t-parking{background:#E8F4FD;color:#2878A8;}
+.card-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border-light);}
+.c-price{font-size:16px;font-weight:700;color:var(--green);}.c-price span{font-size:11px;font-weight:400;color:var(--ink-muted);}
+.c-book{padding:6px 14px;background:var(--accent);color:var(--ink);border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.c-book:hover{background:var(--accent-hover);}
+/* Weather on card */
+.card-weather{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;background:#E8F8FF;border:1px solid rgba(96,165,250,0.15);border-radius:var(--radius-xs);font-size:11px;color:#4A90B8;font-weight:500;}
+.card-weather.rainy{background:var(--warning-dim);border-color:rgba(232,168,48,0.2);color:#9A6D00;}
+
+/* Map */
+#map{width:100%;height:100%;}
+.leaflet-container{background:var(--cream);}
+.leaflet-popup-content-wrapper{background:var(--white)!important;border:1.5px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:var(--shadow-lg)!important;padding:0!important;}
+.leaflet-popup-tip{background:var(--white)!important;border:1px solid var(--border)!important;}
+.leaflet-popup-content{margin:14px 18px!important;font-family:var(--font)!important;font-size:13px!important;line-height:1.5!important;}
+.leaflet-popup-close-button{color:var(--ink-muted)!important;font-size:20px!important;top:8px!important;right:10px!important;}
+.pop-name{font-weight:700;font-size:14px;margin-bottom:2px;}
+.pop-addr{color:var(--ink-muted);font-size:11px;}
+.pop-info{color:var(--ink-soft);font-size:11px;margin-top:5px;}
+.pop-info span{display:inline-flex;align-items:center;gap:3px;margin-right:8px;}
+.pop-price{color:var(--green);font-weight:700;font-size:16px;margin-top:6px;}
+.pop-price small{font-size:11px;font-weight:400;color:var(--ink-muted);}
+.pop-book{display:block;width:100%;margin-top:8px;padding:8px 0;text-align:center;background:var(--accent);color:var(--ink);border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;}
+.pop-book:hover{background:var(--accent-hover);}
+.map-ctrls{position:absolute;bottom:24px;right:14px;z-index:1000;display:flex;flex-direction:column;gap:5px;}
+.map-btn{width:36px;height:36px;background:var(--white);border:1.5px solid var(--border);border-radius:9px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow-sm);}
+.map-btn:hover{border-color:var(--green);color:var(--green);}
+.leaflet-control-zoom{display:none!important;}
+.leaflet-control-attribution{background:rgba(250,249,246,0.85)!important;color:var(--ink-faint)!important;font-size:9px!important;}
+
+/* ═══ MODAL ═══ */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(26,26,26,0.4);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:20px;width:860px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.15);animation:slideModal 0.3s ease;}
+@keyframes slideModal{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-head{padding:24px 28px 0;display:flex;justify-content:space-between;align-items:flex-start;}
+.modal-head h2{font-size:20px;font-weight:700;line-height:1.3;}
+.modal-head h2 small{display:block;font-size:13px;font-weight:400;color:var(--ink-muted);margin-top:2px;}
+.modal-close{width:36px;height:36px;border-radius:50%;background:var(--cream);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-muted);font-size:18px;flex-shrink:0;}
+.modal-close:hover{background:var(--cream-dark);color:var(--ink);}
+.modal-tabs{display:flex;gap:0;padding:16px 28px 0;border-bottom:1.5px solid var(--border-light);}
+.mtab{padding:10px 20px;font-size:13px;font-weight:600;color:var(--ink-muted);background:none;border:none;cursor:pointer;font-family:var(--font);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all 0.15s;}
+.mtab:hover{color:var(--ink-soft);}.mtab.on{color:var(--green);border-bottom-color:var(--green);}
+.tab-content{display:none;padding:24px 28px 28px;}.tab-content.on{display:block;}
+
+/* Calendar */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.cal-date-nav{display:flex;align-items:center;gap:10px;}
+.cal-date-nav button{width:32px;height:32px;border-radius:8px;background:var(--cream);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);font-size:16px;}
+.cal-date-nav button:hover{border-color:var(--green);color:var(--green);}
+.cal-date-label{font-size:15px;font-weight:600;min-width:200px;text-align:center;}
+.cal-legend{display:flex;gap:14px;font-size:11px;color:var(--ink-muted);}
+.cal-legend-item{display:flex;align-items:center;gap:5px;}
+.cal-legend-dot{width:14px;height:10px;border-radius:3px;}
+.cal-legend-dot.avail{background:var(--green-dim);border:1px solid rgba(45,184,122,0.3);}
+.cal-legend-dot.booked{background:var(--booked-stripe);border:1px solid rgba(224,90,90,0.2);}
+.cal-legend-dot.selected{background:var(--accent);border:1px solid var(--accent-hover);}
+.court-timeline{border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:10px;}
+.ct-name{font-size:13px;font-weight:600;margin-bottom:10px;}
+.timeline{display:flex;height:34px;background:var(--cream);border-radius:7px;overflow:hidden;border:1px solid var(--border-light);}
+.time-slot{flex:1;border-right:1px solid var(--border-light);cursor:pointer;transition:all 0.12s;}
+.time-slot:last-child{border-right:none;}
+.time-slot:hover{background:var(--accent-dim);}
+.time-slot.booked{background:var(--booked-stripe);cursor:not-allowed;}
+.time-slot.booked:hover{background:var(--booked-stripe);}
+.time-slot.picked{background:var(--accent);z-index:2;}
+.time-slot.picked:hover{background:var(--accent-hover);}
+.time-labels{display:flex;margin-top:3px;}
+.time-lbl{flex:1;text-align:center;font-size:9px;color:var(--ink-faint);font-weight:500;}
+.cal-loading{text-align:center;padding:30px;color:var(--ink-muted);font-size:13px;}
+
+/* Form */
+.book-form{display:flex;flex-direction:column;gap:16px;}
+.form-row{display:flex;gap:14px;align-items:flex-end;}
+.form-group{flex:1;display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:11px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px;}
+.form-input{padding:9px 13px;background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;color:var(--ink);outline:none;transition:all 0.15s;}
+.form-input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim);}
+.form-input::placeholder{color:var(--ink-faint);}
+select.form-input{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer;}
+.form-summary{background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+.form-summary h4{font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+.summary-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;color:var(--ink-soft);}
+.summary-row b{color:var(--ink);font-weight:600;}
+.summary-total{display:flex;justify-content:space-between;font-size:17px;font-weight:700;color:var(--green);padding-top:10px;border-top:1px solid var(--border);margin-top:8px;}
+.submit-btn{width:100%;padding:13px;background:var(--accent);color:var(--ink);border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+.submit-btn:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:var(--shadow);}
+.submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none;}
+.form-error{background:rgba(224,90,90,0.08);border:1px solid rgba(224,90,90,0.2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#B83030;display:none;}
+.form-error.show{display:block;}
+.book-success{display:none;text-align:center;padding:40px 20px;}
+.book-success.show{display:block;}
+.book-success .check{font-size:56px;margin-bottom:16px;}
+.book-success h3{font-size:20px;font-weight:700;margin-bottom:8px;}
+.book-success p{font-size:14px;color:var(--ink-muted);line-height:1.6;margin-bottom:20px;}
+.book-success .done-btn{padding:12px 32px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;}
+
+/* ═══ MY BOOKINGS MODAL ═══ */
+.mb-input-row{display:flex;gap:10px;margin-bottom:20px;}
+.mb-input-row input{flex:1;}
+.mb-input-row button{padding:9px 20px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-weight:600;font-size:13px;cursor:pointer;}
+.mb-list{display:flex;flex-direction:column;gap:10px;}
+.mb-card{background:var(--cream);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 18px;}
+.mb-card.cancelled{opacity:0.5;}
+.mb-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.mb-card-name{font-size:14px;font-weight:600;}
+.mb-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--radius-pill);}
+.mb-status.confirmed{background:var(--green-dim);color:var(--green-text);}
+.mb-status.cancelled{background:rgba(224,90,90,0.1);color:#B83030;}
+.mb-detail{font-size:12px;color:var(--ink-muted);margin-bottom:2px;}
+.mb-cancel{margin-top:8px;padding:6px 14px;background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:var(--radius-sm);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.mb-cancel:hover{background:rgba(224,90,90,0.08);}
+.mb-empty{text-align:center;padding:30px;color:var(--ink-muted);font-size:14px;}
+
+/* Animations */
+@keyframes slideUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.court-card{opacity:0;animation:slideUp 0.3s ease forwards;}
+.court-card:nth-child(1){animation-delay:.02s}.court-card:nth-child(2){animation-delay:.04s}.court-card:nth-child(3){animation-delay:.06s}.court-card:nth-child(4){animation-delay:.08s}.court-card:nth-child(5){animation-delay:.10s}.court-card:nth-child(6){animation-delay:.12s}
+
+@media(max-width:1100px){.panel-left{width:240px;min-width:240px;}.panel-mid{width:320px;min-width:320px;}}
+@media(max-width:860px){.app{flex-direction:column;}.panel-left{display:none;}.panel-mid{width:100%;min-width:unset;height:50vh;}.panel-right{height:50vh;}}
+</style>
+</head>
+<body>
+<div class="app">
+<!-- LEFT -->
+<div class="panel-left">
+  <div class="brand-bar"><div class="brand"><div class="brand-logo">🎾</div><div><div class="brand-text">Court<span>Finder</span></div><div class="brand-sub">Sydney Tennis Courts</div></div></div></div>
+  <div class="search-section"><div class="search-bar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="searchInput" placeholder="Search courts..."/></div></div>
+  <div class="filters-block"><div class="section-title">Filters<button class="clear-btn" id="clearBtn" onclick="clearFilters()">Clear</button></div>
+    <div class="filter-chips">
+      <button class="chip" data-f="lights" onclick="toggleF('lights')"><span class="chip-icon">💡</span>Lights Available</button>
+      <button class="chip" data-f="parking" onclick="toggleF('parking')"><span class="chip-icon">🅿️</span>Parking</button>
+      <button class="chip" data-f="hard" onclick="toggleF('hard')"><span class="chip-icon">🧱</span>Hard Court</button>
+      <button class="chip" data-f="synthetic" onclick="toggleF('synthetic')"><span class="chip-icon">🌿</span>Synthetic Grass</button>
+      <button class="chip" data-f="4courts" onclick="toggleF('4courts')"><span class="chip-icon">🎾</span>4+ Courts</button>
+    </div>
+  </div>
+  <div class="sort-block"><div class="section-title">Sort By</div><select class="sort-select" id="sortSel" onchange="renderList()"><option value="name">Name A → Z</option><option value="courts">Most Courts</option><option value="suburb">Suburb</option></select></div>
+  <div class="divider"></div>
+  <div class="weather-bar"><div class="weather-card"><div class="wt">☁️ Today's Weather</div><div class="weather-main"><span class="weather-icon" id="wxIcon">🌤</span><span class="weather-temp" id="wxTemp">–</span></div><div class="weather-desc" id="wxDesc">Loading...</div><div class="weather-details"><span id="wxRain">🌧 –%</span><span id="wxWind">💨 – km/h</span></div></div></div>
+  <div class="divider"></div>
+  <div class="rec-section"><div class="section-title">Recommended</div><div class="rec-card"><div class="rec-badge">⭐ Top Pick</div><div class="rec-name">St Ives Village Green</div><div class="rec-sub">4 hard courts with lights, open till 10pm. Parking available.</div><div class="rec-stats"><span class="rec-stat">🎾 4 courts</span><span class="rec-stat">💡 Lights</span><span class="rec-stat">🅿️ Parking</span></div><div class="rec-price">$22<small>/hr</small></div><button class="rec-book-btn" onclick="openBookModal(9)">Book This Court →</button></div></div>
+  <div class="divider"></div>
+  <a class="my-bookings-link" onclick="openMyBookings()">📋 My Bookings</a>
+</div>
+
+<!-- MID -->
+<div class="panel-mid">
+  <div class="list-header"><div class="list-title">All Courts</div><div class="list-count"><b id="cnt">–</b> results</div></div>
+  <div class="court-list" id="list"><div style="text-align:center;padding:40px;color:var(--ink-muted)">Loading courts...</div></div>
+</div>
+
+<!-- RIGHT -->
+<div class="panel-right">
+  <div id="map"></div>
+  <div class="map-ctrls">
+    <button class="map-btn" onclick="map.zoomIn()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <button class="map-btn" onclick="map.zoomOut()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <button class="map-btn" onclick="resetView()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></button>
+  </div>
+</div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="bookOverlay" onclick="if(event.target===this)closeBookModal()">
+<div class="modal">
+  <div class="modal-head"><h2 id="bmTitle">Book<small id="bmSub"></small></h2><button class="modal-close" onclick="closeBookModal()">✕</button></div>
+  <div class="modal-tabs">
+    <button class="mtab on" data-tab="calendar" onclick="switchBmTab('calendar')">📅 Availability</button>
+    <button class="mtab" data-tab="booking" onclick="switchBmTab('booking')">📝 Book Now</button>
+  </div>
+  <div class="tab-content on" id="tab-calendar"><div class="cal-header"><div class="cal-date-nav"><button onclick="calPrev()">‹</button><span class="cal-date-label" id="calLabel"></span><button onclick="calNext()">›</button></div><div class="cal-legend"><div class="cal-legend-item"><div class="cal-legend-dot avail"></div>Available</div><div class="cal-legend-item"><div class="cal-legend-dot booked"></div>Booked</div><div class="cal-legend-item"><div class="cal-legend-dot selected"></div>Selected</div></div></div><div id="calGrid"></div></div>
+  <div class="tab-content" id="tab-booking">
+    <div class="book-form" id="bookForm">
+      <div class="form-error" id="formError"></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="bDate"/></div><div class="form-group"><label class="form-label">Court</label><select class="form-input" id="bCourt"></select></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">From</label><select class="form-input" id="bFrom"></select></div><div class="form-group"><label class="form-label">To</label><select class="form-input" id="bTo"></select></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="bName" placeholder="Full name"/></div><div class="form-group"><label class="form-label">Players</label><select class="form-input" id="bPlayers"><option>2</option><option>3</option><option>4</option></select></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bPhone" placeholder="04XX XXX XXX"/></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bEmail" placeholder="you@email.com"/></div></div>
+      <div class="form-summary"><h4>Summary</h4><div class="summary-row"><span>Court</span><b id="sumCourt">–</b></div><div class="summary-row"><span>Date</span><b id="sumDate">–</b></div><div class="summary-row"><span>Time</span><b id="sumTime">–</b></div><div class="summary-row"><span>Duration</span><b id="sumDur">–</b></div><div class="summary-row"><span>Court Fee</span><b id="sumFee">–</b></div><div class="summary-row" id="sumLR" style="display:none"><span>Lights</span><b id="sumL">–</b></div><div class="summary-total"><span>Total</span><span id="sumTotal">$0</span></div></div>
+      <button class="submit-btn" id="submitBtn" onclick="doSubmit()" disabled>Confirm Booking →</button>
+    </div>
+    <div class="book-success" id="bookOk"><div class="check">✅</div><h3>Booking Confirmed!</h3><p id="okMsg"></p><button class="done-btn" onclick="closeBookModal()">Done</button></div>
+  </div>
+</div>
+</div>
+
+<!-- MY BOOKINGS MODAL -->
+<div class="modal-overlay" id="mbOverlay" onclick="if(event.target===this)closeMb()">
+<div class="modal" style="width:600px;">
+  <div class="modal-head"><h2>My Bookings</h2><button class="modal-close" onclick="closeMb()">✕</button></div>
+  <div style="padding:24px 28px 28px;">
+    <div class="mb-input-row"><input type="email" class="form-input" id="mbEmail" placeholder="Enter your email to find bookings"/><button onclick="loadMyBookings()">Search</button></div>
+    <div id="mbList"><div class="mb-empty">Enter your email above to view your bookings.</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══ CONFIG ═══
+const API = ''; // Empty = same origin; change to 'http://localhost:3000' for dev
+
+// ═══ STATE ═══
+let allCourts=[], weatherData={}, filters=new Set(), sel=null, mkrs={};
+let bmCourt=null, calDate=new Date(), calPicked={}, calAvail=null;
+
+// ═══ HELPERS ═══
+const fmtD=d=>d.toISOString().split('T')[0];
+const fmtDN=d=>{const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${dn[d.getDay()]}, ${d.getDate()} ${mn[d.getMonth()]} ${d.getFullYear()}`;};
+const fmtH=h=>h===0?'12 AM':h<12?`${h} AM`:h===12?'12 PM':`${h-12} PM`;
+const wxEmoji=icon=>{if(!icon)return'🌤';if(icon.includes('01'))return'☀️';if(icon.includes('02'))return'⛅';if(icon.includes('03')||icon.includes('04'))return'☁️';if(icon.includes('09')||icon.includes('10'))return'🌧';if(icon.includes('11'))return'⛈';if(icon.includes('13'))return'❄️';return'🌤';};
+
+// ═══ INIT ═══
+async function init(){
+  await loadCourts();
+  loadWeather();
+}
+
+async function loadCourts(){
+  try{
+    const r=await fetch(`${API}/api/courts`);
+    const d=await r.json();
+    if(d.success) allCourts=d.courts;
+  }catch(e){console.error('Failed to load courts',e);}
+  renderList();
+}
+
+async function loadWeather(){
+  try{
+    const today=fmtD(new Date());
+    const r=await fetch(`${API}/api/weather/bulk?date=${today}`);
+    const d=await r.json();
+    if(d.success) weatherData=d.weather;
+    // Update sidebar weather card (use first court's data)
+    const w=Object.values(weatherData)[0];
+    if(w){
+      document.getElementById('wxIcon').textContent=wxEmoji(w.icon);
+      document.getElementById('wxTemp').innerHTML=w.temp_max!==null?`${Math.round(w.temp_max)}°<small> / ${Math.round(w.temp_min)}°C</small>`:'–';
+      document.getElementById('wxDesc').textContent=w.description||'–';
+      const rainEl=document.getElementById('wxRain');
+      rainEl.textContent=`🌧 ${w.rain_prob||0}%`;
+      if(w.rain_prob>=50)rainEl.classList.add('weather-rain-high');
+      document.getElementById('wxWind').textContent=`💨 ${w.wind_speed||0} m/s`;
+    }
+    renderList(); // re-render with weather
+  }catch(e){console.error('Weather load failed',e);}
+}
+
+// ═══ MAP ═══
+const map=L.map('map',{zoomControl:false}).setView([-33.758,151.158],13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM © CARTO',maxZoom:19}).addTo(map);
+
+function makeIcon(c,on){
+  const bg=on?'#2DB87A':'#FFF',bdr=on?'#2DB87A':'#C8E632',shd=on?'0 3px 12px rgba(45,184,122,0.4)':'0 2px 8px rgba(0,0,0,0.1)';
+  return L.divIcon({className:'',html:`<div style="width:44px;height:44px;background:${bg};border:2.5px solid ${bdr};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:${shd};font-size:18px;position:relative;">🎾<span style="position:absolute;top:-5px;right:-8px;background:${on?'#C8E632':'#2DB87A'};color:${on?'#1A1A1A':'#fff'};font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;font-family:Outfit,sans-serif;">${c.courts_count}</span></div>`,iconSize:[44,44],iconAnchor:[22,22],popupAnchor:[0,-24]});
+}
+function addPins(list){Object.values(mkrs).forEach(m=>map.removeLayer(m));mkrs={};list.forEach(c=>{const m=L.marker([c.lat,c.lng],{icon:makeIcon(c,c.id===sel)}).addTo(map).bindPopup(`<div style="min-width:200px;font-family:Outfit,sans-serif;"><div class="pop-name">${c.name}</div><div class="pop-addr">${c.address}</div><div class="pop-info"><span>🎾 ${c.courts_count}</span><span>📐 ${c.surface==='synthetic_grass'?'Synthetic':'Hard'}</span></div><div class="pop-price">$${c.price_per_hr}<small>/hr</small></div><button class="pop-book" onclick="openBookModal(${c.id})">Book →</button></div>`,{maxWidth:260});m.on('click',()=>pick(c.id));mkrs[c.id]=m;});}
+function pick(id){sel=sel===id?null:id;renderList();if(sel){const c=allCourts.find(x=>x.id===sel);map.flyTo([c.lat,c.lng],15,{duration:0.5});mkrs[c.id]?.openPopup();document.querySelector(`[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'});}}
+function resetView(){sel=null;map.flyTo([-33.758,151.158],13,{duration:0.5});renderList();}
+
+// ═══ FILTERS ═══
+function toggleF(f){if(filters.has(f))filters.delete(f);else{if(f==='hard')filters.delete('synthetic');if(f==='synthetic')filters.delete('hard');filters.add(f);}document.querySelectorAll('.chip').forEach(el=>el.classList.toggle('on',filters.has(el.dataset.f)));document.getElementById('clearBtn').classList.toggle('visible',filters.size>0);renderList();}
+function clearFilters(){filters.clear();document.querySelectorAll('.chip').forEach(el=>el.classList.remove('on'));document.getElementById('clearBtn').classList.remove('visible');renderList();}
+
+function getFiltered(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  return allCourts.filter(c=>{
+    if(q&&!c.name.toLowerCase().includes(q)&&!c.suburb.toLowerCase().includes(q)&&!c.address.toLowerCase().includes(q))return false;
+    if(filters.has('lights')&&!c.lights)return false;
+    if(filters.has('parking')&&!c.parking)return false;
+    if(filters.has('hard')&&c.surface!=='hard')return false;
+    if(filters.has('synthetic')&&c.surface!=='synthetic_grass')return false;
+    if(filters.has('4courts')&&c.courts_count<4)return false;
+    return true;
+  });
+}
+function doSort(list){const s=document.getElementById('sortSel').value;return[...list].sort((a,b)=>{if(s==='name')return a.name.localeCompare(b.name);if(s==='courts')return b.courts_count-a.courts_count;if(s==='suburb')return a.suburb.localeCompare(b.suburb);return 0;});}
+
+function renderList(){
+  const list=doSort(getFiltered());
+  document.getElementById('cnt').textContent=list.length;
+  document.getElementById('list').innerHTML=list.map(c=>{
+    const sf=c.surface==='synthetic_grass';
+    const w=weatherData[c.id];
+    const rainy=w&&w.rain_prob>=50;
+    return`<div class="court-card${c.id===sel?' active':''}" data-id="${c.id}" onclick="pick(${c.id})">
+      <div class="card-top"><div class="c-name">${c.name}</div><div class="c-suburb">${c.suburb}</div></div>
+      <div class="c-address">${c.address}</div>
+      <div class="c-tags"><span class="t ${sf?'t-synth':'t-surface'}">${sf?'Synthetic':'Hard Court'}</span><span class="t t-courts">🎾 ${c.courts_count}</span>${c.lights?'<span class="t t-lights">💡 Lights</span>':'<span class="t t-nolights">No Lights</span>'}${c.parking?'<span class="t t-parking">🅿️</span>':''}</div>
+      <div class="card-bottom"><div class="c-price">$${c.price_per_hr}<span>/hr</span></div><button class="c-book" onclick="event.stopPropagation();openBookModal(${c.id})">Book →</button></div>
+      ${w&&w.description&&w.description!=='Weather unavailable'&&w.description!=='Set OPENWEATHER_API_KEY'?`<div class="card-weather${rainy?' rainy':''}">${wxEmoji(w.icon)} ${Math.round(w.temp_max||0)}°C · ${w.description} · 🌧 ${w.rain_prob||0}%</div>`:''}
+    </div>`;
+  }).join('');
+  addPins(list);
+}
+document.getElementById('searchInput').addEventListener('input',()=>renderList());
+
+// ═══ BOOK MODAL ═══
+function openBookModal(id){
+  bmCourt=allCourts.find(c=>c.id===id);if(!bmCourt)return;
+  calDate=new Date();calPicked={};calAvail=null;
+  document.getElementById('bmTitle').innerHTML=`${bmCourt.name}<small>${bmCourt.address}</small>`;
+  document.getElementById('bookOverlay').classList.add('open');
+  document.getElementById('bookForm').style.display='flex';
+  document.getElementById('bookOk').classList.remove('show');
+  document.getElementById('formError').classList.remove('show');
+  switchBmTab('calendar');loadCal();populateForm();
+}
+function closeBookModal(){document.getElementById('bookOverlay').classList.remove('open');bmCourt=null;}
+function switchBmTab(t){document.querySelectorAll('#bookOverlay .mtab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));document.querySelectorAll('#bookOverlay .tab-content').forEach(tc=>tc.classList.toggle('on',tc.id===`tab-${t}`));if(t==='booking')updateSum();}
+
+// Calendar
+async function loadCal(){
+  if(!bmCourt)return;
+  document.getElementById('calGrid').innerHTML='<div class="cal-loading">Loading availability...</div>';
+  document.getElementById('calLabel').textContent=fmtDN(calDate);
+  try{
+    const r=await fetch(`${API}/api/courts/${bmCourt.id}/availability?date=${fmtD(calDate)}`);
+    calAvail=await r.json();
+    renderCal();
+  }catch(e){document.getElementById('calGrid').innerHTML='<div class="cal-loading">Failed to load</div>';}
+}
+function renderCal(){
+  if(!calAvail||!calAvail.grid){document.getElementById('calGrid').innerHTML='';return;}
+  document.getElementById('calLabel').textContent=fmtDN(calDate);
+  let h='';
+  for(let cn=1;cn<=calAvail.courts_count;cn++){
+    const sf=calAvail.surface==='synthetic_grass'?'Synthetic grass':'Hard court';
+    h+=`<div class="court-timeline"><div class="ct-name">${sf} court ${cn}</div><div class="timeline">`;
+    for(let hr=calAvail.open_hour;hr<calAvail.close_hour;hr++){
+      const bk=calAvail.grid[cn]&&calAvail.grid[cn][hr]==='booked';
+      const pk=calPicked[`${cn}-${hr}`];
+      let cls='time-slot';if(bk)cls+=' booked';else if(pk)cls+=' picked';
+      h+=`<div class="${cls}" onclick="calClick(${cn},${hr})" title="${hr}:00–${hr+1}:00${bk?' (Booked)':''}"></div>`;
+    }
+    h+=`</div><div class="time-labels">`;
+    for(let hr=calAvail.open_hour;hr<calAvail.close_hour;hr++){const l=hr<12?`${hr}am`:hr===12?'12pm':`${hr-12}pm`;h+=`<div class="time-lbl">${l}</div>`;}
+    h+=`</div></div>`;
+  }
+  document.getElementById('calGrid').innerHTML=h;
+}
+function calClick(cn,hr){
+  if(!calAvail||!calAvail.grid[cn])return;
+  if(calAvail.grid[cn][hr]==='booked')return;
+  const k=`${cn}-${hr}`;calPicked[k]?delete calPicked[k]:calPicked[k]=true;
+  renderCal();syncPick();
+}
+function calPrev(){calDate.setDate(calDate.getDate()-1);calPicked={};loadCal();}
+function calNext(){calDate.setDate(calDate.getDate()+1);calPicked={};loadCal();}
+function syncPick(){
+  const keys=Object.keys(calPicked);if(!keys.length)return;
+  const cn=parseInt(keys[0].split('-')[0]);
+  const hrs=keys.filter(k=>k.startsWith(cn+'-')).map(k=>parseInt(k.split('-')[1])).sort((a,b)=>a-b);
+  if(!hrs.length)return;
+  document.getElementById('bDate').value=fmtD(calDate);
+  document.getElementById('bCourt').value=cn;
+  setTS('bFrom',hrs[0]);setTS('bTo',hrs[hrs.length-1]+1);updateSum();
+}
+
+// Form
+function populateForm(){
+  if(!bmCourt)return;const c=bmCourt;
+  document.getElementById('bDate').value=fmtD(calDate);
+  const cs=document.getElementById('bCourt');cs.innerHTML='';
+  for(let i=1;i<=c.courts_count;i++){const sf=c.surface==='synthetic_grass'?'Synthetic':'Hard';cs.innerHTML+=`<option value="${i}">${sf} court ${i}</option>`;}
+  popTS('bFrom',c.open_hour,c.close_hour-1);popTS('bTo',c.open_hour+1,c.close_hour);
+  setTS('bFrom',c.open_hour);setTS('bTo',c.open_hour+1);updateSum();
+}
+function popTS(id,min,max){const s=document.getElementById(id);s.innerHTML='';for(let h=min;h<=max;h++)s.innerHTML+=`<option value="${h}">${fmtH(h)}</option>`;}
+function setTS(id,v){const s=document.getElementById(id);if(s.querySelector(`option[value="${v}"]`))s.value=v;}
+['bDate','bCourt','bFrom','bTo','bName','bPhone','bEmail'].forEach(id=>{const e=document.getElementById(id);e?.addEventListener('change',updateSum);e?.addEventListener('input',updateSum);});
+
+function updateSum(){
+  if(!bmCourt)return;const c=bmCourt;
+  const cn=parseInt(document.getElementById('bCourt').value)||1;
+  const fh=parseInt(document.getElementById('bFrom').value),th=parseInt(document.getElementById('bTo').value);
+  const sf=c.surface==='synthetic_grass'?'Synthetic':'Hard';
+  document.getElementById('sumCourt').textContent=`${sf} court ${cn}`;
+  document.getElementById('sumDate').textContent=document.getElementById('bDate').value||'–';
+  document.getElementById('sumTime').textContent=`${fmtH(fh)} – ${fmtH(th)}`;
+  const dur=Math.max(0,th-fh);
+  document.getElementById('sumDur').textContent=`${dur} hr${dur!==1?'s':''}`;
+  const fee=dur*c.price_per_hr;document.getElementById('sumFee').textContent=`$${fee}`;
+  let lf=0;
+  if(c.lights&&(fh>=18||th>18)){const nh=Math.max(0,th-Math.max(fh,18));lf=nh*c.lights_price;document.getElementById('sumLR').style.display='flex';document.getElementById('sumL').textContent=`$${lf}`;}else{document.getElementById('sumLR').style.display='none';}
+  document.getElementById('sumTotal').textContent=`$${fee+lf}`;
+  const nm=document.getElementById('bName').value.trim(),ph=document.getElementById('bPhone').value.trim(),em=document.getElementById('bEmail').value.trim();
+  document.getElementById('submitBtn').disabled=!(dur>0&&nm&&ph&&em&&document.getElementById('bDate').value);
+}
+
+async function doSubmit(){
+  if(!bmCourt)return;
+  const body={
+    court_id:bmCourt.id,
+    court_number:parseInt(document.getElementById('bCourt').value),
+    date:document.getElementById('bDate').value,
+    start_hour:parseInt(document.getElementById('bFrom').value),
+    end_hour:parseInt(document.getElementById('bTo').value),
+    booker_name:document.getElementById('bName').value.trim(),
+    booker_phone:document.getElementById('bPhone').value.trim(),
+    booker_email:document.getElementById('bEmail').value.trim(),
+    players:parseInt(document.getElementById('bPlayers').value)
+  };
+  document.getElementById('submitBtn').disabled=true;
+  document.getElementById('formError').classList.remove('show');
+  try{
+    const r=await fetch(`${API}/api/bookings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!d.success){
+      document.getElementById('formError').textContent=d.error||'Booking failed';
+      document.getElementById('formError').classList.add('show');
+      document.getElementById('submitBtn').disabled=false;
+      return;
+    }
+    const sf=bmCourt.surface==='synthetic_grass'?'Synthetic':'Hard';
+    document.getElementById('okMsg').innerHTML=`<b>${bmCourt.name}</b><br>${sf} court ${body.court_number}<br>${body.date} · ${fmtH(body.start_hour)} – ${fmtH(body.end_hour)}<br>Total: ${document.getElementById('sumTotal').textContent}<br><br>Confirmation sent to ${body.booker_email}`;
+    document.getElementById('bookForm').style.display='none';
+    document.getElementById('bookOk').classList.add('show');
+  }catch(e){
+    document.getElementById('formError').textContent='Network error. Please try again.';
+    document.getElementById('formError').classList.add('show');
+    document.getElementById('submitBtn').disabled=false;
+  }
+}
+
+// ═══ MY BOOKINGS ═══
+function openMyBookings(){document.getElementById('mbOverlay').classList.add('open');}
+function closeMb(){document.getElementById('mbOverlay').classList.remove('open');}
+
+async function loadMyBookings(){
+  const email=document.getElementById('mbEmail').value.trim();
+  if(!email){document.getElementById('mbList').innerHTML='<div class="mb-empty">Please enter an email.</div>';return;}
+  document.getElementById('mbList').innerHTML='<div class="mb-empty">Loading...</div>';
+  try{
+    const r=await fetch(`${API}/api/bookings?email=${encodeURIComponent(email)}`);
+    const d=await r.json();
+    if(!d.success||d.bookings.length===0){document.getElementById('mbList').innerHTML='<div class="mb-empty">No bookings found for this email.</div>';return;}
+    document.getElementById('mbList').innerHTML='<div class="mb-list">'+d.bookings.map(b=>{
+      const sf=b.surface==='synthetic_grass'?'Synthetic':'Hard';
+      return`<div class="mb-card${b.status==='cancelled'?' cancelled':''}">
+        <div class="mb-card-top"><div class="mb-card-name">${b.court_name}</div><span class="mb-status ${b.status}">${b.status}</span></div>
+        <div class="mb-detail">${sf} court ${b.court_number} · ${b.date}</div>
+        <div class="mb-detail">${fmtH(b.start_hour)} – ${fmtH(b.end_hour)} · ${b.players} players</div>
+        <div class="mb-detail">Total: $${b.total_price}</div>
+        ${b.status==='confirmed'?`<button class="mb-cancel" onclick="cancelBooking(${b.id},'${email}')">Cancel Booking</button>`:''}
+      </div>`;
+    }).join('')+'</div>';
+  }catch(e){document.getElementById('mbList').innerHTML='<div class="mb-empty">Error loading bookings.</div>';}
+}
+
+async function cancelBooking(id,email){
+  if(!confirm('Are you sure you want to cancel this booking?'))return;
+  try{
+    const r=await fetch(`${API}/api/bookings/${id}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.success) loadMyBookings();
+    else alert(d.error||'Cancel failed');
+  }catch(e){alert('Network error');}
+}
+
+// ═══ START ═══
+init();
+</script>
+</body>
+</html>
