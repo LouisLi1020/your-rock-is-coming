@@ -135,6 +135,23 @@ app.delete('/api/bookings/:id', (req, res) => {
   }
 });
 
+// ── POST /api/bookings/:id/refund ── Request weather refund
+app.post('/api/bookings/:id/refund', (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'email required in request body' });
+
+    const result = db.refundBooking(parseInt(req.params.id), email);
+    if (!result.success) {
+      const status = result.error === 'Booking not found' ? 404 : 403;
+      return res.status(status).json(result);
+    }
+    res.json({ success: true, refund_amount: result.refund_amount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── GET /api/weather/:courtId?date=YYYY-MM-DD ── Weather for a court location
 app.get('/api/weather/:courtId', async (req, res) => {
   try {
@@ -173,7 +190,7 @@ app.get('/api/weather/:courtId', async (req, res) => {
           temp_max: null,
           description: 'Weather unavailable',
           icon: null,
-          rain_prob: 0,
+          rain_prob: 70,
           wind_speed: 0
         }
       });
