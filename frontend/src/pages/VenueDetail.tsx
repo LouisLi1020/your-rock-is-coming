@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -14,11 +15,14 @@ import {
   Car,
   Users,
 } from 'lucide-react'
-import { getVenueById } from '../data/venues'
-import { getTimeSlotsForDate, formatCourtLabel } from '../data/booking'
-import { useBooking } from '../context/BookingContext'
+import { getCourtById, getAvailability } from '../api/courts'
+import { courtToVenue } from '../utils/courtToVenue'
+import { availabilityGridToSlots } from '../utils/availabilityFromApi'
+import { formatCourtLabel } from '../data/booking'
 import { ImageWithFallback } from '../components/ImageWithFallback'
+import { VenueDetailMap } from '../components/VenueDetailMap'
 import { Nav } from '../components/Nav'
+import type { Venue } from '../data/venues'
 
 const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   wifi: Wifi,
@@ -31,16 +35,61 @@ const AMENITY_FALLBACK = Users
 
 export function VenueDetail() {
   const { venueId } = useParams<{ venueId: string }>()
-  const venue = venueId ? getVenueById(venueId) : undefined
-  const { bookings } = useBooking()
-  const courtCount = Math.min(venue?.courts ?? 2, 4)
-  const today = new Date()
-  const todaySlots =
-    venue && courtCount
-      ? getTimeSlotsForDate(venue.id, today, courtCount, venue.openingHours, bookings)
-      : []
+  const [venue, setVenue] = useState<Venue | null | undefined>(undefined)
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [daySlots, setDaySlots] = useState<Awaited<ReturnType<typeof availabilityGridToSlots>>>([])
 
-  if (!venue) {
+  useEffect(() => {
+    if (!venueId) {
+      setVenue(null)
+      return
+    }
+    const numId = Number(venueId)
+    if (Number.isNaN(numId)) {
+      setVenue(null)
+      return
+    }
+    let cancelled = false
+    getCourtById(numId)
+      .then((res) => {
+        if (!cancelled) setVenue(courtToVenue(res.court))
+      })
+      .catch(() => {
+        if (!cancelled) setVenue(null)
+      })
+    return () => { cancelled = true }
+  }, [venueId])
+
+  useEffect(() => {
+    if (!venueId || !venue) {
+      setDaySlots([])
+      return
+    }
+    const numId = Number(venueId)
+    if (Number.isNaN(numId)) return
+    let cancelled = false
+    getAvailability(numId, selectedDate)
+      .then((av) => {
+        if (!cancelled) setDaySlots(availabilityGridToSlots(av, selectedDate))
+      })
+      .catch(() => {
+        if (!cancelled) setDaySlots([])
+      })
+    return () => { cancelled = true }
+  }, [venueId, venue, selectedDate])
+
+  const notFound = venueId && venue === null
+  const loading = venueId && venue === undefined
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-sand flex flex-col">
+        <Nav />
+        <div className="flex-1 flex items-center justify-center text-bark-lt">Loading venue…</div>
+      </div>
+    )
+  }
+  if (!venue || notFound) {
     return (
       <div className="min-h-screen bg-sand flex flex-col">
         <Nav />
@@ -135,6 +184,12 @@ export function VenueDetail() {
               </div>
             </section>
 
+            {/* Location map */}
+            <section className="bg-white rounded-xl p-6 shadow-sm border border-[var(--border)]">
+              <h2 className="text-bark font-lora font-semibold text-lg mb-4">Location</h2>
+              <VenueDetailMap lat={venue.lat} lng={venue.lng} name={venue.name} className="h-[220px] w-full" />
+            </section>
+
             {/* Court Details */}
             <section className="bg-white rounded-xl p-6 shadow-sm border border-[var(--border)]">
               <h2 className="text-bark font-lora font-semibold text-lg mb-4">Court Details</h2>
@@ -202,16 +257,24 @@ export function VenueDetail() {
             </section>
           </div>
 
-          {/* Sidebar: Today's Availability */}
+          {/* Sidebar: Availability by date */}
           <div className="lg:col-span-1">
             <section className="bg-white rounded-xl p-6 shadow-sm border border-[var(--border)] sticky top-4">
-              <h2 className="text-bark font-lora font-semibold text-lg mb-1">Today&apos;s availability</h2>
-              <p className="text-sm text-bark-lt mb-4">{format(today, 'EEEE, MMMM d, yyyy')}</p>
+              <h2 className="text-bark font-lora font-semibold text-lg mb-2">Availability</h2>
+              <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1.5">Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-sm text-bark mb-4 focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none"
+              />
+              <p className="text-sm text-bark-lt mb-4">{format(new Date(selectedDate + 'T12:00:00'), 'EEEE, MMM d')}</p>
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                {todaySlots.length === 0 ? (
-                  <p className="text-sm text-bark-lt">No slots today. Try another day.</p>
+                {daySlots.length === 0 ? (
+                  <p className="text-sm text-bark-lt">No slots this day. Try another date.</p>
                 ) : (
-                  todaySlots.map((slot) => (
+                  daySlots.map((slot) => (
                     <div
                       key={slot.id}
                       className={`p-3 rounded-lg border ${
@@ -237,7 +300,7 @@ export function VenueDetail() {
                 )}
               </div>
               <Link
-                to={`/book?venue=${venue.id}`}
+                to={`/book?court=${venue.id}`}
                 className="mt-6 w-full inline-flex items-center justify-center px-4 py-3 bg-g600 text-white rounded-xl font-semibold hover:bg-g800 transition-colors"
               >
                 Book a court

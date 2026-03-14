@@ -1,17 +1,20 @@
 {
-  "name": "courtfinder",
-  "version": "1.0.0",
-  "description": "CourtFinder — Sydney Tennis Court Booking Platform",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "seed": "node db/seed.js"
-  },
-  "dependencies": {
-    "better-sqlite3": "^11.0.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "node-fetch": "^2.7.0"
-  }
+    "name": "courtfinder",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "cross-env PORT=3001 node server.js",
+        "dev:frontend": "npm run dev --prefix frontend",
+        "dev:all": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
+        "seed": "node db/seed.js"
+    },
+    "dependencies": {
+        "better-sqlite3": "^11.0.0",
+        "cors": "^2.8.5",
+        "express": "^4.18.2",
+        "node-fetch": "^2.7.0"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.0",
+        "cross-env": "^7.0.3"
+    }
 }

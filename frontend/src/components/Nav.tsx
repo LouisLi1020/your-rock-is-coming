@@ -1,6 +1,8 @@
 import { Link, NavLink } from 'react-router-dom'
+import { useBooking } from '../context/BookingContext'
 
 export function Nav() {
+  const { setBookingsPanelOpen } = useBooking()
   return (
     <nav className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 sm:px-6 bg-white border-b border-[var(--border)]">
       <Link to="/" className="font-lora text-base font-semibold text-g600 tracking-tight">
@@ -46,15 +48,17 @@ export function Nav() {
             }`
           }
         >
-          Bookings
+          Schedule
         </NavLink>
       </div>
-      <Link
-        to="/profile"
-        className="bg-g600 text-white border-none px-4 py-2 rounded-[20px] text-xs font-medium hover:bg-g800 transition-colors"
+      <button
+        type="button"
+        onClick={() => setBookingsPanelOpen(true)}
+        title="My schedule"
+        className="w-10 h-10 rounded-full bg-white border-2 border-[var(--accent)] flex items-center justify-center text-lg shadow-sm hover:scale-[1.05] hover:shadow-md hover:border-g600 transition-all"
       >
-        Profile
-      </Link>
+        👤
+      </button>
     </nav>
   )
 }

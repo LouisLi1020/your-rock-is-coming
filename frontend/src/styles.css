@@ -1,28 +1,47 @@
+/* styles.css — 替换 frontend/src/styles.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+
 :root {
-  --sand: #F9F6EE;
-  --bark: #4a3728;
-  --bark-lt: #7a6255;
-  --g50: #EAF3DE;
-  --g600: #3B6D11;
-  --g800: #27500A;
-  --border: #e8e2d8;
+  --cream: #FAF9F6;
+  --cream-dark: #F2F0EB;
+  --ink: #1A1A1A;
+  --ink-soft: #3D3D3D;
+  --ink-muted: #8A8A8A;
+  --ink-faint: #B5B5B5;
+  --border: #E8E6E1;
+  --border-light: #F0EDE8;
+  --accent: #C8E632;
+  --accent-hover: #B8D42A;
+  --green: #2DB87A;
+  --green-dim: rgba(45,184,122,0.1);
+  --warning: #E8A830;
+  --danger: #E05A5A;
+
+  /* 他的 CSS 变量别名 → 你的色系（兼容他的组件） */
+  --sand: #FAF9F6;
+  --bark: #1A1A1A;
+  --bark-lt: #3D3D3D;
+  --g50: rgba(200,230,50,0.15);
+  --g600: #1A7A4F;
+  --g800: #145F3C;
 }
 
 body {
-  @apply bg-sand text-bark font-sans antialiased;
+  @apply bg-cream text-ink font-sans antialiased;
 }
 
 .leaflet-container {
   font-family: inherit;
+  background: var(--cream);
 }
 
-/* Toast overrides to match design */
+/* Toast overrides */
 .toast-custom {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 20px rgba(74, 55, 40, 0.15) !important;
+  font-family: 'Outfit', system-ui, sans-serif !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
 }

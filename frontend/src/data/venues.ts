@@ -1,4 +1,8 @@
-/** Venue type aligned with Figma design + map + booking */
+/**
+ * Venue type used across Discover, Map, detail and booking.
+ * Main app data now comes from API (courts → courtToVenue). The static list below
+ * is kept for type reference and optional demo; Discover/Book use API venues only.
+ */
 export type Venue = {
   id: string
   name: string
@@ -21,6 +25,13 @@ export type Venue = {
   lat: number
   lng: number
   amenities?: string[]
+  /** From API court – for booking page (price, hours, summary) */
+  price_per_hr?: number
+  lights_price?: number
+  open_hour?: number
+  close_hour?: number
+  /** Surface from API: hard | synthetic_grass */
+  surface_api?: 'hard' | 'synthetic_grass'
 }
 
 const DEFAULT_IMAGE =

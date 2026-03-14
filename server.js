@@ -16,7 +16,7 @@ const WEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || '';
 // ═══ MIDDLEWARE ═══
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'frontend', 'dist')));
 
 // ═══ API ROUTES ═══
 
@@ -247,6 +247,66 @@ app.get('/api/weather/:courtId', async (req, res) => {
   }
 });
 
+// ── GET /api/weather/:courtId/hourly?date=YYYY-MM-DD ── Hourly rain % via Open-Meteo (free, no key)
+// Returns 3 days (selected + next 2) with precise location (suburb) and exact times.
+app.get('/api/weather/:courtId/hourly', async (req, res) => {
+  try {
+    const court = db.getCourtById(parseInt(req.params.courtId));
+    if (!court) return res.status(404).json({ success: false, error: 'Court not found' });
+
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const selected = new Date(date + 'T12:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysFromToday = Math.max(0, Math.ceil((selected - today) / (24 * 60 * 60 * 1000)));
+    const forecastDays = Math.min(16, Math.max(3, daysFromToday + 3));
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${court.lat}&longitude=${court.lng}&hourly=precipitation_probability,temperature_2m&timezone=Australia/Sydney&forecast_days=${forecastDays}`;
+    const apiRes = await fetch(url);
+    const apiData = await apiRes.json();
+
+    if (apiData.error) {
+      return res.status(502).json({ success: false, error: 'Weather API error', detail: apiData.reason });
+    }
+
+    const times = apiData.hourly?.time || [];
+    const probs = apiData.hourly?.precipitation_probability || [];
+    const temps = apiData.hourly?.temperature_2m || [];
+    const locationLabel = [court.suburb, 'Sydney'].filter(Boolean).join(', ');
+
+    const byDate = {};
+    for (let i = 0; i < times.length; i++) {
+      const iso = times[i];
+      const d = iso.slice(0, 10);
+      if (!byDate[d]) byDate[d] = [];
+      const hour = parseInt(iso.slice(11, 13), 10);
+      byDate[d].push({
+        hour,
+        time_iso: iso,
+        rain_prob: probs[i] != null ? probs[i] : 0,
+        temp_c: temps[i] != null ? Math.round(temps[i] * 10) / 10 : null
+      });
+    }
+
+    const days = [];
+    for (let offset = 0; offset < 3; offset++) {
+      const d = new Date(selected);
+      d.setDate(d.getDate() + offset);
+      const dateStr = d.toISOString().slice(0, 10);
+      days.push({ date: dateStr, hourly: byDate[dateStr] || [] });
+    }
+
+    res.json({
+      success: true,
+      source: 'open-meteo',
+      location_label: locationLabel,
+      days
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── GET /api/weather/bulk?date=YYYY-MM-DD ── Weather for ALL courts (one area)
 app.get('/api/weather/bulk', async (req, res) => {
   try {
@@ -325,7 +385,7 @@ app.get('/api/weather/bulk', async (req, res) => {
 
 // ── SPA fallback ──
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 });
 
 // ═══ START ═══
