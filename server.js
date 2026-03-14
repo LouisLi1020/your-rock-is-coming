@@ -26,11 +26,12 @@ app.get('/api/courts', (req, res) => {
     let courts = db.getAllCourts();
 
     // Apply filters from query params
-    const { surface, lights, parking, min_courts, suburb, q } = req.query;
+    const { surface, lights, parking, toilet, min_courts, suburb, q } = req.query;
 
     if (surface) courts = courts.filter(c => c.surface === surface);
     if (lights === '1') courts = courts.filter(c => c.lights === 1);
     if (parking === '1') courts = courts.filter(c => c.parking === 1);
+    if (toilet === '1') courts = courts.filter(c => (c.toilet || 0) === 1);
     if (min_courts) courts = courts.filter(c => c.courts_count >= parseInt(min_courts));
     if (suburb) courts = courts.filter(c => c.suburb.toLowerCase() === suburb.toLowerCase());
     if (q) {

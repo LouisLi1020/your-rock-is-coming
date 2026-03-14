@@ -17,12 +17,36 @@ type Props = {
   onBookRecommended: () => void
 }
 
-const FILTER_OPTIONS = [
-  { key: 'lights', icon: '💡', label: 'Lights Available' },
-  { key: 'parking', icon: '🅿️', label: 'Parking' },
-  { key: 'hard', icon: '🧱', label: 'Hard Court' },
-  { key: 'synthetic', icon: '🌿', label: 'Synthetic Grass' },
-  { key: '4courts', icon: '🎾', label: '4+ Courts' },
+const FILTER_GROUPS: {
+  title: string
+  items: { key: string; label: string }[]
+}[] = [
+  {
+    title: 'Court Environment',
+    items: [
+      { key: 'indoor', label: 'Indoor' },
+      { key: 'outdoor', label: 'Outdoor' },
+    ],
+  },
+  {
+    title: 'Surface Type',
+    items: [
+      { key: 'hard', label: 'Hard Court' },
+      { key: 'clay', label: 'Clay' },
+      { key: 'synthetic_clay', label: 'Synthetic Clay' },
+      { key: 'grass', label: 'Grass' },
+      { key: 'synthetic_grass', label: 'Synthetic Grass' },
+    ],
+  },
+  {
+    title: 'Facilities',
+    items: [
+      { key: 'parking', label: 'Parking' },
+      { key: 'lights', label: 'Night Lights' },
+      { key: 'toilet', label: 'Toilet' },
+      { key: '4courts', label: '4+ Courts' },
+    ],
+  },
 ]
 
 export function LeftPanel({
@@ -69,25 +93,40 @@ export function LeftPanel({
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-muted">Filters</span>
           {filters.size > 0 && (
-            <button onClick={onClearFilters} className="text-[11px] text-green font-medium hover:underline">Clear</button>
+            <button
+              onClick={onClearFilters}
+              className="text-[11px] text-green font-medium hover:underline"
+            >
+              Clear
+            </button>
           )}
         </div>
-        <div className="flex flex-col gap-1.5">
-          {FILTER_OPTIONS.map(({ key, icon, label }) => (
-            <button
-              key={key}
-              onClick={() => onToggleFilter(key)}
-              className={`
-                flex items-center gap-2 w-full px-3.5 py-2.5 rounded-[10px] text-[13px] font-medium transition-all text-left
-                ${filters.has(key)
-                  ? 'bg-accent/15 border-[1.5px] border-accent-hover text-accent-text font-semibold'
-                  : 'bg-cream border-[1.5px] border-[#E8E6E1] text-ink-soft hover:border-ink-faint hover:bg-cream-dark'
-                }
-              `}
-            >
-              <span className="text-[15px] w-5 text-center">{icon}</span>
-              {label}
-            </button>
+        <div className="space-y-3">
+          {FILTER_GROUPS.map((group) => (
+            <div key={group.title} className="border border-[#F0EDE8] rounded-[12px] bg-cream px-3.5 py-3">
+              <div className="text-[11px] font-semibold text-ink-muted mb-1.5">
+                {group.title}
+              </div>
+              <div className="space-y-1.5">
+                {group.items.map(({ key, label }) => {
+                  const checked = filters.has(key)
+                  return (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-[13px] text-ink-soft cursor-pointer select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => onToggleFilter(key)}
+                        className="w-3.5 h-3.5 rounded-[4px] border-[#D2CEC5] text-green focus:ring-green/30 focus:ring-1 cursor-pointer"
+                      />
+                      <span className={checked ? 'font-semibold text-ink' : ''}>{label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
           ))}
         </div>
       </div>

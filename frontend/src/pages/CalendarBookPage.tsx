@@ -10,6 +10,8 @@ import { useCourtsAsVenues } from '../hooks/useCourtsAsVenues'
 import { useBooking, DEMO_USER } from '../context/BookingContext'
 import toast from 'react-hot-toast'
 
+const MAX_HOURS = 2
+
 function formatHour(h: number): string {
   if (h === 0) return '12 AM'
   if (h < 12) return `${h} AM`
@@ -30,21 +32,18 @@ export function CalendarBookPage() {
   const [calDate, setCalDate] = useState(() => new Date())
   const [calAvail, setCalAvail] = useState<AvailabilityGrid | null>(null)
   const [calLoading, setCalLoading] = useState(false)
-  /** Hourly weather for 3 days (Open-Meteo), with location label */
   const [weatherLocation, setWeatherLocation] = useState<string>('')
   const [weatherDays, setWeatherDays] = useState<HourlyWeatherDay[]>([])
   const [hourlyWeatherLoading, setHourlyWeatherLoading] = useState(false)
   /** Picked slots: key = "courtNum-hour", value = true */
   const [calPicked, setCalPicked] = useState<Record<string, boolean>>({})
+  /** Tracks a reload counter to force re-fetch availability after booking */
+  const [reloadCounter, setReloadCounter] = useState(0)
 
-  const [formDate, setFormDate] = useState('')
-  const [formCourt, setFormCourt] = useState(1)
-  const [formFrom, setFormFrom] = useState(8)
-  const [formTo, setFormTo] = useState(9)
-  const [formName, setFormName] = useState(DEMO_USER.name)
+  const [formName, setFormName] = useState<string>(DEMO_USER.name)
   const [formPlayers, setFormPlayers] = useState(2)
-  const [formPhone, setFormPhone] = useState(DEMO_USER.phone)
-  const [formEmail, setFormEmail] = useState(DEMO_USER.email)
+  const [formPhone, setFormPhone] = useState<string>(DEMO_USER.phone)
+  const [formEmail, setFormEmail] = useState<string>(DEMO_USER.email)
 
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -62,6 +61,7 @@ export function CalendarBookPage() {
     if (courtFromUrl && venues.some((v) => v.id === courtFromUrl)) setVenueId(courtFromUrl)
   }, [courtFromUrl, venues])
 
+  // Fetch availability (also re-fetches when reloadCounter changes)
   useEffect(() => {
     if (!venue) {
       setCalAvail(null)
@@ -81,8 +81,9 @@ export function CalendarBookPage() {
       })
       .catch(() => setCalAvail(null))
       .finally(() => setCalLoading(false))
-  }, [venue, calDate])
+  }, [venue, calDate, reloadCounter])
 
+  // Fetch weather
   useEffect(() => {
     if (!venue) {
       setWeatherLocation('')
@@ -103,16 +104,14 @@ export function CalendarBookPage() {
       .finally(() => setHourlyWeatherLoading(false))
   }, [venue, calDate])
 
-  useEffect(() => {
-    if (!venue) return
-    setFormDate(format(calDate, 'yyyy-MM-dd'))
-    const count = venue.courts ?? 1
-    if (formCourt > count) setFormCourt(1)
-    const open = venue.open_hour ?? 7
-    const close = venue.close_hour ?? 22
-    if (formFrom < open || formFrom >= close) setFormFrom(open)
-    if (formTo <= formFrom || formTo > close) setFormTo(formFrom + 1)
-  }, [venue, calDate])
+  const openHour = venue?.open_hour ?? 7
+  const closeHour = venue?.close_hour ?? 22
+  const pricePerHr = venue?.price_per_hr ?? 0
+  const lightsPrice = venue?.lights_price ?? 0
+  const hasLights = venue?.nightLighting ?? false
+
+  const hourOptions: number[] = []
+  for (let h = openHour; h < closeHour; h++) hourOptions.push(h)
 
   const handleCalPrev = useCallback(() => {
     setCalDate((d) => subDays(d, 1))
@@ -123,57 +122,98 @@ export function CalendarBookPage() {
     setCalPicked({})
   }, [])
 
-  const handleSlotClick = useCallback((courtNum: number, hour: number) => {
-    if (!calAvail?.grid[courtNum]) return
-    if (calAvail.grid[courtNum][hour] === 'booked') return
-    const key = `${courtNum}-${hour}`
-    setCalPicked((prev) => {
-      const next = { ...prev }
-      if (next[key]) delete next[key]
-      else next[key] = true
-      return next
-    })
-  }, [calAvail])
+  /**
+   * Slot click logic:
+   * - Only one court at a time
+   * - Max 2 consecutive hours
+   * - Clicking a different court resets selection
+   * - Clicking a non-adjacent slot resets to just that slot
+   */
+  const handleSlotClick = useCallback(
+    (courtNum: number, hour: number) => {
+      if (!calAvail?.grid[courtNum]) return
+      if (calAvail.grid[courtNum][hour] === 'booked') return
 
-  const syncPickToForm = useCallback(() => {
-    const keys = Object.keys(calPicked).filter((k) => calPicked[k])
-    if (keys.length === 0) return
-    const courtNum = parseInt(keys[0].split('-')[0], 10)
-    const hours = keys
-      .filter((k) => k.startsWith(`${courtNum}-`))
-      .map((k) => parseInt(k.split('-')[1], 10))
-      .sort((a, b) => a - b)
-    if (hours.length === 0) return
-    setFormCourt(courtNum)
-    setFormFrom(hours[0])
-    setFormTo(hours[hours.length - 1] + 1)
-    setFormDate(format(calDate, 'yyyy-MM-dd'))
-  }, [calPicked, calDate])
+      const key = `${courtNum}-${hour}`
 
-  useEffect(() => {
-    syncPickToForm()
-  }, [syncPickToForm])
+      setCalPicked((prev) => {
+        const prevKeys = Object.keys(prev).filter((k) => prev[k])
 
-  const openHour = venue?.open_hour ?? 7
-  const closeHour = venue?.close_hour ?? 22
-  const pricePerHr = venue?.price_per_hr ?? 0
-  const lightsPrice = venue?.lights_price ?? 0
-  const hasLights = venue?.nightLighting ?? false
+        // If clicking the same slot that's already picked, deselect it
+        if (prev[key]) {
+          const next = { ...prev }
+          delete next[key]
+          return next
+        }
+
+        // If no previous selection, just select this one
+        if (prevKeys.length === 0) {
+          return { [key]: true }
+        }
+
+        // Get the court of current selection
+        const currentCourt = parseInt(prevKeys[0].split('-')[0], 10)
+
+        // Different court → reset to just this slot
+        if (courtNum !== currentCourt) {
+          return { [key]: true }
+        }
+
+        // Same court — check adjacency and max hours
+        const currentHours = prevKeys
+          .map((k) => parseInt(k.split('-')[1], 10))
+          .sort((a, b) => a - b)
+
+        const minH = currentHours[0]
+        const maxH = currentHours[currentHours.length - 1]
+
+        // Is the new hour adjacent?
+        const isAdjacentBefore = hour === minH - 1
+        const isAdjacentAfter = hour === maxH + 1
+
+        if (!isAdjacentBefore && !isAdjacentAfter) {
+          // Not adjacent → reset to just this slot
+          return { [key]: true }
+        }
+
+        // Would adding exceed MAX_HOURS?
+        if (currentHours.length >= MAX_HOURS) {
+          // Already at max — reset to just this slot
+          return { [key]: true }
+        }
+
+        // Check the new slot is available
+        if (calAvail.grid[courtNum][hour] === 'booked') {
+          return prev
+        }
+
+        // Add it
+        return { ...prev, [key]: true }
+      })
+    },
+    [calAvail]
+  )
+
+  // Derive form values from picked slots (read-only)
+  const pickedKeys = Object.keys(calPicked).filter((k) => calPicked[k])
+  const pickedCourt = pickedKeys.length > 0 ? parseInt(pickedKeys[0].split('-')[0], 10) : null
+  const pickedHours = pickedKeys
+    .map((k) => parseInt(k.split('-')[1], 10))
+    .sort((a, b) => a - b)
+  const formFrom = pickedHours.length > 0 ? pickedHours[0] : openHour
+  const formTo = pickedHours.length > 0 ? pickedHours[pickedHours.length - 1] + 1 : openHour
+  const formCourt = pickedCourt ?? 1
+  const formDate = format(calDate, 'yyyy-MM-dd')
 
   const duration = Math.max(0, formTo - formFrom)
   const courtFee = duration * pricePerHr
-  const lightsHours = hasLights && (formFrom >= 18 || formTo > 18)
-    ? Math.max(0, formTo - Math.max(formFrom, 18))
-    : 0
+  const lightsHours =
+    hasLights && (formFrom >= 18 || formTo > 18) ? Math.max(0, formTo - Math.max(formFrom, 18)) : 0
   const lightsFee = lightsHours * lightsPrice
   const total = courtFee + lightsFee
 
-  const canSubmit =
-    duration > 0 &&
-    formDate &&
-    formName.trim() !== '' &&
-    formPhone.trim() !== '' &&
-    formEmail.trim() !== ''
+  const hasSelection = pickedKeys.length > 0
+  const canSubmit = hasSelection && duration > 0 && duration <= MAX_HOURS && formName.trim() !== '' && formPhone.trim() !== '' && formEmail.trim() !== ''
 
   const handleSubmit = async () => {
     if (!venue || !canSubmit) return
@@ -204,6 +244,15 @@ export function CalendarBookPage() {
     }
   }
 
+  /** "Book another" resets state and forces availability re-fetch */
+  const handleBookAnother = useCallback(() => {
+    setBookSuccess(false)
+    setSuccessMessage('')
+    setCalPicked({})
+    setFormError('')
+    setReloadCounter((c) => c + 1) // triggers availability re-fetch
+  }, [])
+
   if (bookSuccess) {
     return (
       <div className="min-h-screen bg-sand flex flex-col">
@@ -213,13 +262,13 @@ export function CalendarBookPage() {
           <h1 className="font-lora text-2xl font-semibold text-bark mb-2">Booking confirmed</h1>
           <p className="text-sm text-bark-lt whitespace-pre-line mb-6">{successMessage}</p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              to="/book"
+            <button
+              type="button"
+              onClick={handleBookAnother}
               className="px-5 py-2.5 border border-[var(--border)] rounded-xl text-bark font-medium hover:bg-g50"
-              onClick={() => { setBookSuccess(false); setSuccessMessage('') }}
             >
               Book another
-            </Link>
+            </button>
             <Link to="/" className="px-5 py-2.5 bg-g600 text-white font-semibold rounded-xl hover:bg-g800">
               Back to Discover
             </Link>
@@ -229,17 +278,14 @@ export function CalendarBookPage() {
     )
   }
 
-  const hourOptions: number[] = []
-  for (let h = openHour; h < closeHour; h++) hourOptions.push(h)
-  const toOptions: number[] = []
-  for (let h = formFrom + 1; h <= closeHour; h++) toOptions.push(h)
-
   return (
     <div className="min-h-screen bg-sand flex flex-col">
       <Nav />
       <nav className="bg-white border-b border-[var(--border)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 text-sm text-bark-lt">
-          <Link to="/" className="text-g600 hover:underline">Discover</Link>
+          <Link to="/" className="text-g600 hover:underline">
+            Discover
+          </Link>
           <span className="mx-2">/</span>
           <span className="text-bark">Book a court</span>
         </div>
@@ -247,29 +293,34 @@ export function CalendarBookPage() {
 
       <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 flex-1">
         <h1 className="font-lora text-2xl font-semibold text-bark mb-1">Book a court</h1>
-        <p className="text-sm text-bark-lt mb-6">Choose venue, pick a date and time on the timeline, then fill your details.</p>
+        <p className="text-sm text-bark-lt mb-6">
+          Choose venue, pick up to {MAX_HOURS} consecutive hours on one court, then confirm.
+        </p>
 
         <div className="mb-6">
           <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-2">Venue</label>
           <select
             value={venueId}
-            onChange={(e) => { setVenueId(e.target.value); setCalPicked({}) }}
+            onChange={(e) => {
+              setVenueId(e.target.value)
+              setCalPicked({})
+            }}
             className="w-full max-w-md px-4 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-bark font-medium focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none"
           >
             {venues.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
             ))}
             {venues.length === 0 && <option value="">Loading venues…</option>}
           </select>
         </div>
 
-        {!venue && (
-          <p className="text-bark-lt text-sm">Select a venue to see availability.</p>
-        )}
+        {!venue && <p className="text-bark-lt text-sm">Select a venue to see availability.</p>}
 
         {venue && (
           <>
-            {/* ═══ Availability (index-style timeline) ═══ */}
+            {/* ═══ Availability timeline ═══ */}
             <section className="bg-white rounded-[14px] border border-[var(--border)] p-5 mb-8">
               <h2 className="text-sm font-semibold text-bark mb-4">📅 Availability</h2>
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -281,9 +332,7 @@ export function CalendarBookPage() {
                   >
                     ‹
                   </button>
-                  <span className="font-semibold text-bark min-w-[200px] text-center">
-                    {formatDateDisplay(calDate)}
-                  </span>
+                  <span className="font-semibold text-bark min-w-[200px] text-center">{formatDateDisplay(calDate)}</span>
                   <button
                     type="button"
                     onClick={handleCalNext}
@@ -299,8 +348,12 @@ export function CalendarBookPage() {
                   <span className="flex items-center gap-1.5">
                     <span
                       className="w-3.5 h-2.5 rounded border border-red-200/50"
-                      style={{ background: 'repeating-linear-gradient(135deg, rgba(224,90,90,0.12), rgba(224,90,90,0.12) 3px, rgba(224,90,90,0.04) 3px, rgba(224,90,90,0.04) 6px)' }}
-                    /> Booked
+                      style={{
+                        background:
+                          'repeating-linear-gradient(135deg, rgba(224,90,90,0.12), rgba(224,90,90,0.12) 3px, rgba(224,90,90,0.04) 3px, rgba(224,90,90,0.04) 6px)',
+                      }}
+                    />{' '}
+                    Booked
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-3.5 h-2.5 rounded bg-[var(--accent)] border border-[var(--accent-hover)]" /> Selected
@@ -308,11 +361,16 @@ export function CalendarBookPage() {
                 </div>
               </div>
 
+              {/* Max hours hint */}
+              <p className="text-[11px] text-bark-lt mb-3">
+                Click to select up to <strong>{MAX_HOURS} consecutive hours</strong> on one court.
+              </p>
+
               {calLoading ? (
                 <p className="text-center py-8 text-bark-lt text-sm">Loading availability…</p>
               ) : calAvail?.grid ? (
                 <div className="space-y-4">
-                  {/* Rain chance row: same width per hour as court timelines, aligned with time */}
+                  {/* Rain chance row */}
                   {(() => {
                     const selectedDayStr = format(calDate, 'yyyy-MM-dd')
                     const selectedDayData = weatherDays.find((d) => d.date === selectedDayStr)
@@ -332,16 +390,13 @@ export function CalendarBookPage() {
                       const base = 60
                       const tempBoost = (temp - 18) * 1.5
                       const rainPenalty = rain * 0.7
-                      const score = Math.max(0, Math.min(100, Math.round(base + tempBoost - rainPenalty)))
-                      return score
+                      return Math.max(0, Math.min(100, Math.round(base + tempBoost - rainPenalty)))
                     }
                     return (
                       <div className="border border-[var(--border)] rounded-[14px] p-3 sm:p-4">
                         <div className="text-[13px] font-semibold text-bark mb-2 flex items-center gap-2">
                           Rain chance
-                          {weatherLocation && (
-                            <span className="text-[11px] font-normal text-bark-lt">— {weatherLocation}</span>
-                          )}
+                          {weatherLocation && <span className="text-[11px] font-normal text-bark-lt">— {weatherLocation}</span>}
                         </div>
                         {hourlyWeatherLoading ? (
                           <div className="flex h-8 items-center text-xs text-bark-lt">Loading…</div>
@@ -357,9 +412,7 @@ export function CalendarBookPage() {
                                   className="flex-1 border-r border-sky-200/60 last:border-r-0 flex items-center justify-center min-w-0"
                                   title={`${formatHour(hr)} – ${formatHour(hr + 1)}: ${pct} rain`}
                                 >
-                                  <span className={`text-[10px] font-medium truncate ${high ? 'text-amber-600' : 'text-bark-lt'}`}>
-                                    {pct}
-                                  </span>
+                                  <span className={`text-[10px] font-medium truncate ${high ? 'text-amber-600' : 'text-bark-lt'}`}>{pct}</span>
                                 </div>
                               )
                             })}
@@ -390,9 +443,7 @@ export function CalendarBookPage() {
                                     className="flex-1 border-r border-emerald-200/60 last:border-r-0 flex items-center justify-center min-w-0"
                                     title={`${formatHour(hr)} – ${formatHour(hr + 1)}: ${pct} dry`}
                                   >
-                                    <span className={`text-[10px] font-medium truncate ${low ? 'text-amber-700' : 'text-emerald-700'}`}>
-                                      {pct}
-                                    </span>
+                                    <span className={`text-[10px] font-medium truncate ${low ? 'text-amber-700' : 'text-emerald-700'}`}>{pct}</span>
                                   </div>
                                 )
                               })}
@@ -402,29 +453,30 @@ export function CalendarBookPage() {
                       </div>
                     )
                   })()}
+
+                  {/* Court timelines */}
                   {Array.from({ length: calAvail.courts_count }, (_, i) => i + 1).map((courtNum) => {
                     const surfaceLabel = calAvail.surface === 'synthetic_grass' ? 'Synthetic grass' : 'Hard court'
+                    const isActiveCourt = pickedCourt === courtNum
                     return (
                       <div
                         key={courtNum}
-                        className="border border-[var(--border)] rounded-[14px] p-3 sm:p-4"
+                        className={`border rounded-[14px] p-3 sm:p-4 transition-colors ${
+                          isActiveCourt ? 'border-[#2DB87A] bg-[#F7FDF9]' : 'border-[var(--border)]'
+                        }`}
                       >
-                        <div className="text-[13px] font-semibold text-bark mb-2">
+                        <div className="text-[13px] font-semibold text-bark mb-2 flex items-center gap-2">
                           {surfaceLabel} court {courtNum}
+                          {isActiveCourt && <span className="text-[10px] font-medium text-[#2DB87A]">● Selected</span>}
                         </div>
                         <div className="flex h-8 bg-[var(--cream)] rounded-lg overflow-hidden border border-[var(--border-light)]">
                           {hourOptions.map((hr) => {
                             const booked = calAvail.grid[courtNum]?.[hr] === 'booked'
                             const picked = !!calPicked[`${courtNum}-${hr}`]
                             let cls = 'flex-1 border-r border-[var(--border-light)] last:border-r-0 cursor-pointer transition-colors '
-                            if (booked) cls += 'cursor-not-allowed '
-                            if (booked) cls += 'opacity-80 '
+                            if (booked) cls += 'cursor-not-allowed opacity-80 '
                             if (picked) cls += 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] '
                             else if (!booked) cls += 'hover:bg-g50 '
-                            if (booked) {
-                              cls += 'bg-repeat'
-                              cls += ' '
-                            }
                             return (
                               <button
                                 key={hr}
@@ -432,7 +484,14 @@ export function CalendarBookPage() {
                                 disabled={booked}
                                 title={`${formatHour(hr)} – ${formatHour(hr + 1)}${booked ? ' (Booked)' : ''}`}
                                 className={cls}
-                                style={booked ? { backgroundImage: 'repeating-linear-gradient(135deg, rgba(224,90,90,0.12), rgba(224,90,90,0.12) 3px, rgba(224,90,90,0.04) 3px, rgba(224,90,90,0.04) 6px)' } : undefined}
+                                style={
+                                  booked
+                                    ? {
+                                        backgroundImage:
+                                          'repeating-linear-gradient(135deg, rgba(224,90,90,0.12), rgba(224,90,90,0.12) 3px, rgba(224,90,90,0.04) 3px, rgba(224,90,90,0.04) 6px)',
+                                      }
+                                    : undefined
+                                }
                                 onClick={() => handleSlotClick(courtNum, hr)}
                               />
                             )
@@ -456,74 +515,46 @@ export function CalendarBookPage() {
               )}
             </section>
 
-            {/* ═══ Book form (index-style fields + summary) ═══ */}
+            {/* ═══ Book form — date/court/time are READ-ONLY, driven by timeline ═══ */}
             <section className="bg-white rounded-[14px] border border-[var(--border)] p-5 sm:p-6">
               <h2 className="text-sm font-semibold text-bark mb-4">📝 Book now</h2>
 
-              {formError && (
-                <div className="mb-4 p-3 rounded-[10px] bg-red-50 border border-red-200/50 text-[#B83030] text-[13px]">
-                  {formError}
+              {!hasSelection && (
+                <div className="mb-4 p-3 rounded-[10px] bg-[var(--cream)] border border-[var(--border)] text-[13px] text-bark-lt">
+                  Please select time slots on the timeline above to continue.
                 </div>
               )}
 
+              {formError && (
+                <div className="mb-4 p-3 rounded-[10px] bg-red-50 border border-red-200/50 text-[#B83030] text-[13px]">{formError}</div>
+              )}
+
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Date / Court / Time — read-only info boxes */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={formDate}
-                      min={format(new Date(), 'yyyy-MM-dd')}
-                      onChange={(e) => { setFormDate(e.target.value); setCalDate(parseISO(e.target.value)); setCalPicked({}) }}
-                      className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none"
-                    />
+                    <div className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark">
+                      {formDate || '–'}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">Court</label>
-                    <select
-                      value={formCourt}
-                      onChange={(e) => setFormCourt(Number(e.target.value))}
-                      className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none appearance-none bg-no-repeat bg-[length:12px] bg-[right_12px_center] pr-9"
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")" }}
-                    >
-                      {Array.from({ length: venue.courts ?? 1 }, (_, i) => i + 1).map((n) => (
-                        <option key={n} value={n}>
-                          {(venue.surface_api === 'synthetic_grass' ? 'Synthetic' : 'Hard')} court {n}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark">
+                      {hasSelection
+                        ? `${venue.surface_api === 'synthetic_grass' ? 'Synthetic' : 'Hard'} court ${formCourt}`
+                        : '–'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">Time</label>
+                    <div className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark">
+                      {hasSelection ? `${formatHour(formFrom)} – ${formatHour(formTo)}` : '–'}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">From</label>
-                    <select
-                      value={formFrom}
-                      onChange={(e) => { setFormFrom(Number(e.target.value)); if (formTo <= Number(e.target.value)) setFormTo(Number(e.target.value) + 1) }}
-                      className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none appearance-none bg-no-repeat bg-[length:12px] bg-[right_12px_center] pr-9"
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")" }}
-                    >
-                      {hourOptions.map((h) => (
-                        <option key={h} value={h}>{formatHour(h)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">To</label>
-                    <select
-                      value={formTo}
-                      onChange={(e) => setFormTo(Number(e.target.value))}
-                      className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none appearance-none bg-no-repeat bg-[length:12px] bg-[right_12px_center] pr-9"
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")" }}
-                    >
-                      {toOptions.map((h) => (
-                      <option key={h} value={h}>{formatHour(h)}</option>
-                    ))}
-                    </select>
-                  </div>
-                </div>
-
+                {/* Editable fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-bark-lt uppercase tracking-wider mb-1">Name</label>
@@ -541,10 +572,15 @@ export function CalendarBookPage() {
                       value={formPlayers}
                       onChange={(e) => setFormPlayers(Number(e.target.value))}
                       className="w-full px-3 py-2.5 bg-[var(--cream)] border border-[var(--border)] rounded-[10px] text-[13px] text-bark focus:border-g600 focus:ring-2 focus:ring-green-dim outline-none appearance-none bg-no-repeat bg-[length:12px] bg-[right_12px_center] pr-9"
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")" }}
+                      style={{
+                        backgroundImage:
+                          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8A8A' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                      }}
                     >
                       {[2, 3, 4].map((n) => (
-                        <option key={n} value={n}>{n}</option>
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -573,11 +609,14 @@ export function CalendarBookPage() {
                   </div>
                 </div>
 
+                {/* Summary */}
                 <div className="bg-[var(--cream)] border border-[var(--border)] rounded-[14px] p-4 mt-2">
                   <h4 className="text-[12px] font-semibold text-bark-lt uppercase tracking-wider mb-3">Summary</h4>
                   <div className="flex justify-between text-[13px] text-bark-lt">
                     <span>Court</span>
-                    <b className="text-bark">{(venue.surface_api === 'synthetic_grass' ? 'Synthetic' : 'Hard')} court {formCourt}</b>
+                    <b className="text-bark">
+                      {hasSelection ? `${venue.surface_api === 'synthetic_grass' ? 'Synthetic' : 'Hard'} court ${formCourt}` : '–'}
+                    </b>
                   </div>
                   <div className="flex justify-between text-[13px] text-bark-lt">
                     <span>Date</span>
@@ -585,11 +624,13 @@ export function CalendarBookPage() {
                   </div>
                   <div className="flex justify-between text-[13px] text-bark-lt">
                     <span>Time</span>
-                    <b className="text-bark">{formatHour(formFrom)} – {formatHour(formTo)}</b>
+                    <b className="text-bark">{hasSelection ? `${formatHour(formFrom)} – ${formatHour(formTo)}` : '–'}</b>
                   </div>
                   <div className="flex justify-between text-[13px] text-bark-lt">
                     <span>Duration</span>
-                    <b className="text-bark">{duration} hr{duration !== 1 ? 's' : ''}</b>
+                    <b className="text-bark">
+                      {duration} hr{duration !== 1 ? 's' : ''}
+                    </b>
                   </div>
                   <div className="flex justify-between text-[13px] text-bark-lt">
                     <span>Court fee</span>
@@ -606,7 +647,8 @@ export function CalendarBookPage() {
                     <span>${total}</span>
                   </div>
                   <p className="mt-1 text-[11px] text-bark-lt">
-                    Estimated total including lights: ${total} (court ${courtFee}{lightsFee > 0 ? ` + lights ${lightsFee}` : ''})
+                    Estimated total including lights: ${total} (court ${courtFee}
+                    {lightsFee > 0 ? ` + lights ${lightsFee}` : ''})
                   </p>
                 </div>
 
@@ -624,7 +666,9 @@ export function CalendarBookPage() {
         )}
 
         <p className="text-sm text-bark-lt mt-6">
-          <Link to="/" className="text-g600 font-medium hover:underline">← Back to Discover</Link>
+          <Link to="/" className="text-g600 font-medium hover:underline">
+            ← Back to Discover
+          </Link>
         </p>
       </div>
     </div>

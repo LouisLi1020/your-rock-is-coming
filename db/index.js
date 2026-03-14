@@ -19,7 +19,7 @@ function getDB() {
 function getAllCourts() {
   return getDB().prepare(`
     SELECT id, name, address, suburb, courts_count, surface, outdoor,
-           lights, parking, open_hour, close_hour, price_per_hr, lights_price,
+           lights, parking, toilet, open_hour, close_hour, price_per_hr, lights_price,
            phone, email, lat, lng
     FROM courts ORDER BY name
   `).all();
@@ -152,8 +152,8 @@ function cancelBooking(bookingId, email) {
   if (booking.booker_email !== email) return { success: false, error: 'Email does not match booking' };
   if (booking.status === 'cancelled') return { success: false, error: 'Booking already cancelled' };
 
-  getDB().prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(bookingId);
-  return { success: true };
+  getDB().prepare("UPDATE bookings SET status = 'refunded' WHERE id = ?").run(bookingId);
+  return { success: true, refund_amount: booking.total_price };
 }
 /**
  * Refund a booking (weather-related)

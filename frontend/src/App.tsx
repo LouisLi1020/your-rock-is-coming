@@ -8,6 +8,7 @@ import { Home } from './pages/Home'
 import { BookingsPage } from './pages/BookingsPage'
 import { CalendarBookPage } from './pages/CalendarBookPage'
 import { VenueDetail } from './pages/VenueDetail'
+import { ProfilePage } from './pages/ProfilePage'
 
 function RedirectToCalendarBook() {
   const { venueId } = useParams<{ venueId: string }>()
@@ -25,6 +26,7 @@ function AppRoutes() {
         <Route path="/book" element={<CalendarBookPage />} />
         <Route path="/venue/:venueId" element={<VenueDetail />} />
         <Route path="/venue/:venueId/book" element={<RedirectToCalendarBook />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
       <BookingsSlidePanel open={bookingsPanelOpen} onClose={() => setBookingsPanelOpen(false)} />
     </>

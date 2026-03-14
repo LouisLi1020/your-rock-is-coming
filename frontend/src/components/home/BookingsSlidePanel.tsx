@@ -25,17 +25,13 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
   const { bookings, loading, removeBooking, requestRefund } = useBooking()
   const [enriched, setEnriched] = useState<EnrichedBooking[]>([])
   const [hasWarning, setHasWarning] = useState(false)
-  /** Filter by date (YYYY-MM-DD). null = show all */
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  /** Calendar month for the mini calendar */
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
-  const [refundConfirm, setRefundConfirm] = useState<{ id: number; amount: number } | null>(null)
+  const [refundConfirm, setRefundConfirm] = useState<{ id: number; amount: number; reason: 'weather' | 'cancel' } | null>(null)
   const [refundSuccess, setRefundSuccess] = useState<number | null>(null)
 
-  // Enrich bookings with weather data
   const enrichBookings = useCallback(async () => {
     const now = new Date()
-    const todayStr = now.toISOString().split('T')[0]
 
     const results = await Promise.all(
       bookings.map(async (b): Promise<EnrichedBooking> => {
@@ -46,7 +42,7 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
           if (eb._hoursUntil > 0 && eb._hoursUntil <= 48) {
             try {
               const wd = await getWeatherForCourt(b.court_id, b.date)
-              if (wd.success && wd.weather.rain_prob >= 50) {
+              if (wd.success && wd.weather != null && wd.weather.rain_prob >= 50) {
                 eb._weather = wd.weather
               }
             } catch {}
@@ -64,7 +60,6 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
     if (bookings.length > 0) enrichBookings()
   }, [bookings, enrichBookings])
 
-  // Expose warning state via DOM for the avatar dot
   useEffect(() => {
     const dot = document.getElementById('notifDot')
     if (dot) dot.classList.toggle('show', hasWarning)
@@ -80,28 +75,37 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
   const calendarPadStart = monthStart.getDay()
   const calendarPadEnd = (7 - ((calendarPadStart + calendarDays.length) % 7)) % 7
 
-  const filteredByDate = selectedDate
-    ? enriched.filter((b) => b.date === selectedDate)
-    : null
+  const filteredByDate = selectedDate ? enriched.filter((b) => b.date === selectedDate) : null
   const upcoming = (filteredByDate ?? enriched).filter((b) => b.date >= todayStr && b.status === 'confirmed')
   const past = (filteredByDate ?? enriched).filter((b) => b.date < todayStr || b.status !== 'confirmed')
 
-  async function handleCancel(id: number) {
-    if (!confirm('Cancel this booking?')) return
-    await removeBooking(id)
+  async function handleCancel(id: number, totalPrice: number, hoursUntil: number | null) {
+    // 24h内不能退
+    if (hoursUntil !== null && hoursUntil < 24) {
+      alert('Cancellation is not available within 24 hours of the booking.')
+      return
+    }
+    // 24h以上全额退
+    setRefundConfirm({ id, amount: totalPrice, reason: 'cancel' })
   }
 
-  function handleRefundClick(id: number, amount: number) {
-    setRefundConfirm({ id, amount })
+  function handleWeatherRefund(id: number, amount: number) {
+    setRefundConfirm({ id, amount, reason: 'weather' })
   }
 
   async function handleRefundConfirm() {
     if (!refundConfirm) return
-    const { id, amount } = refundConfirm
+    const { id, amount, reason } = refundConfirm
     setRefundConfirm(null)
-    const res = await requestRefund(id)
-    if (res.success) setRefundSuccess(res.refund_amount ?? amount)
-    else alert(res.error || 'Refund failed')
+    if (reason === 'weather') {
+      const res = await requestRefund(id)
+      if (res.success) setRefundSuccess(res.refund_amount ?? amount)
+      else alert(res.error || 'Refund failed')
+    } else {
+      // Regular cancel — cancelBooking also refunds
+      await removeBooking(id)
+      setRefundSuccess(amount)
+    }
   }
 
   return (
@@ -111,70 +115,70 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
         className={`fixed inset-0 bg-black/30 z-[1000] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
-      {/* Panel */}
+      {/* Panel — 360px wide */}
       <div
-        className={`fixed top-0 right-0 w-[460px] h-screen bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.1)] z-[1001] flex flex-col transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 w-[360px] h-screen bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.1)] z-[1001] flex flex-col transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
-        <div className="px-6 pt-5 pb-3.5 border-b border-[#E8E6E1] flex items-center justify-between">
-          <h2 className="text-lg font-bold">My schedule</h2>
+        <div className="px-5 pt-4 pb-3 border-b border-[#E8E6E1] flex items-center justify-between">
+          <h2 className="text-base font-bold">My schedule</h2>
           <button
             onClick={onClose}
-            className="w-[34px] h-[34px] rounded-full bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-base hover:text-ink hover:bg-cream-dark"
+            className="w-8 h-8 rounded-full bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-sm hover:text-ink hover:bg-cream-dark"
           >
             ✕
           </button>
         </div>
-        {/* User info + credit */}
-        <div className="px-6 py-3.5 bg-cream border-b border-[#F0EDE8]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-base font-bold text-ink">A</div>
+        {/* User info */}
+        <div className="px-5 py-3 bg-cream border-b border-[#F0EDE8]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-ink">A</div>
             <div>
-              <div className="text-sm font-semibold">{DEMO_USER.name}</div>
-              <div className="text-[11px] text-ink-muted">{DEMO_USER.email}</div>
+              <div className="text-[13px] font-semibold">{DEMO_USER.name}</div>
+              <div className="text-[10px] text-ink-muted">{DEMO_USER.email}</div>
             </div>
           </div>
           {(() => {
             const creditTotal = bookings.filter((b) => b.status === 'refunded').reduce((s, b) => s + b.total_price, 0)
             if (creditTotal <= 0) return null
             return (
-              <div className="mt-2.5 pt-2.5 border-t border-[#E8E6E1]">
+              <div className="mt-2 pt-2 border-t border-[#E8E6E1]">
                 <div className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Credit</div>
                 <div className="text-sm font-bold text-green">${creditTotal}</div>
-                <div className="text-[10px] text-ink-muted">From weather refunds</div>
+                <div className="text-[10px] text-ink-muted">From refunds</div>
               </div>
             )
           })()}
         </div>
-        {/* Mini calendar */}
-        <div className="px-6 py-4 border-b border-[#F0EDE8]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[13px] font-semibold text-bark">{format(calendarMonth, 'MMMM yyyy')}</span>
+        {/* Mini calendar — compact */}
+        <div className="px-5 py-3 border-b border-[#F0EDE8]">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[12px] font-semibold text-bark">{format(calendarMonth, 'MMMM yyyy')}</span>
             <div className="flex gap-1">
               <button
                 type="button"
                 onClick={() => setCalendarMonth((m) => subMonths(m, 1))}
-                className="w-7 h-7 rounded-lg bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-sm hover:border-green hover:text-green"
+                className="w-6 h-6 rounded-md bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-xs hover:border-green hover:text-green"
               >
                 ‹
               </button>
               <button
                 type="button"
                 onClick={() => setCalendarMonth((m) => addMonths(m, 1))}
-                className="w-7 h-7 rounded-lg bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-sm hover:border-green hover:text-green"
+                className="w-6 h-6 rounded-md bg-cream border border-[#E8E6E1] flex items-center justify-center text-ink-muted text-xs hover:border-green hover:text-green"
               >
                 ›
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium text-ink-muted mb-1">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d}>{d}</div>
+          <div className="grid grid-cols-7 gap-px text-center text-[9px] font-medium text-ink-muted mb-0.5">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+              <div key={i}>{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-0.5">
+          <div className="grid grid-cols-7 gap-px">
             {Array.from({ length: calendarPadStart }, (_, i) => (
-              <div key={`pad-${i}`} className="aspect-square" />
+              <div key={`pad-${i}`} className="w-full" />
             ))}
             {calendarDays.map((day) => {
               const dateStr = format(day, 'yyyy-MM-dd')
@@ -187,39 +191,37 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
                   key={dateStr}
                   type="button"
                   onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                  className={`aspect-square rounded-lg text-[11px] font-medium flex flex-col items-center justify-center transition-colors ${
+                  className={`w-7 h-7 rounded-md text-[10px] font-medium flex flex-col items-center justify-center transition-colors mx-auto ${
                     !isCurrentMonth ? 'text-ink-faint' : ''
                   } ${isToday ? 'ring-1 ring-green ring-offset-1 ring-offset-white' : ''} ${
                     hasBooking ? 'bg-green/15 text-green-800 font-semibold' : 'hover:bg-cream'
                   } ${isSelected ? 'bg-green text-white hover:bg-green' : ''}`}
                 >
                   {format(day, 'd')}
-                  {hasBooking && !isSelected && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green mt-0.5" />
-                  )}
+                  {hasBooking && !isSelected && <span className="w-1 h-1 rounded-full bg-green mt-px" />}
                 </button>
               )
             })}
             {Array.from({ length: calendarPadEnd }, (_, i) => (
-              <div key={`padEnd-${i}`} className="aspect-square" />
+              <div key={`padEnd-${i}`} className="w-full" />
             ))}
           </div>
           {selectedDate && (
             <button
               type="button"
               onClick={() => setSelectedDate(null)}
-              className="mt-2 text-[11px] font-medium text-green hover:underline"
+              className="mt-1.5 text-[10px] font-medium text-green hover:underline"
             >
               Show all dates
             </button>
           )}
         </div>
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin">
+        {/* Body — booking list */}
+        <div className="flex-1 overflow-y-auto px-5 py-3 scrollbar-thin">
           {loading ? (
-            <div className="text-center py-10 text-ink-muted text-sm">Loading...</div>
+            <div className="text-center py-8 text-ink-muted text-sm">Loading...</div>
           ) : enriched.length === 0 ? (
-            <div className="text-center py-10 text-ink-muted text-sm">No bookings yet.</div>
+            <div className="text-center py-8 text-ink-muted text-sm">No bookings yet.</div>
           ) : selectedDate && upcoming.length === 0 && past.length === 0 ? (
             <div className="text-center py-6 text-ink-muted text-sm">
               No bookings on {format(new Date(selectedDate + 'T12:00:00'), 'EEE, d MMM')}.
@@ -227,27 +229,27 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
           ) : (
             <>
               {selectedDate && (
-                <p className="text-[11px] font-semibold text-ink-muted mb-2.5">
-                  {format(new Date(selectedDate + 'T12:00:00'), "EEEE, d MMM yyyy")} — {upcoming.length + past.length} booking(s)
+                <p className="text-[10px] font-semibold text-ink-muted mb-2">
+                  {format(new Date(selectedDate + 'T12:00:00'), 'EEEE, d MMM yyyy')} — {upcoming.length + past.length} booking(s)
                 </p>
               )}
               {upcoming.length > 0 && (
                 <>
-                  {!selectedDate && (
-                    <div className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-muted mb-2.5">Upcoming</div>
-                  )}
+                  {!selectedDate && <div className="text-[9px] font-bold uppercase tracking-[1.2px] text-ink-muted mb-2">Upcoming</div>}
                   {upcoming.map((b) => (
-                    <BookingCard key={b.id} booking={b} onCancel={handleCancel} onRefund={handleRefundClick} />
+                    <BookingCard key={b.id} booking={b} onCancel={handleCancel} onWeatherRefund={handleWeatherRefund} />
                   ))}
                 </>
               )}
               {past.length > 0 && (
                 <>
                   {!selectedDate && (
-                    <div className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-muted mt-4 mb-2.5 pt-2 border-t border-[#F0EDE8]">Past & Cancelled</div>
+                    <div className="text-[9px] font-bold uppercase tracking-[1.2px] text-ink-muted mt-3 mb-2 pt-2 border-t border-[#F0EDE8]">
+                      Past & Cancelled
+                    </div>
                   )}
                   {past.map((b) => (
-                    <BookingCard key={b.id} booking={b} onCancel={handleCancel} onRefund={handleRefundClick} />
+                    <BookingCard key={b.id} booking={b} onCancel={handleCancel} onWeatherRefund={handleWeatherRefund} />
                   ))}
                 </>
               )}
@@ -258,12 +260,17 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
       <Modal
         open={!!refundConfirm}
         onClose={() => setRefundConfirm(null)}
-        title="Request weather refund?"
+        title={refundConfirm?.reason === 'weather' ? 'Request weather refund?' : 'Cancel & refund?'}
         primaryAction={{ label: 'Confirm', onClick: handleRefundConfirm }}
-        secondaryAction={{ label: 'Cancel', onClick: () => setRefundConfirm(null) }}
+        secondaryAction={{ label: 'Go back', onClick: () => setRefundConfirm(null) }}
       >
         {refundConfirm && (
-          <p>You will receive <strong>${refundConfirm.amount}</strong> as account credit. Continue?</p>
+          <p>
+            {refundConfirm.reason === 'weather'
+              ? `Weather refund: you will receive $${refundConfirm.amount} as account credit.`
+              : `You will receive a full refund of $${refundConfirm.amount} as account credit.`}{' '}
+            Continue?
+          </p>
         )}
       </Modal>
       <Modal
@@ -272,21 +279,28 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
         title="Refund successful"
         primaryAction={{ label: 'Done', onClick: () => setRefundSuccess(null) }}
       >
-        {refundSuccess != null && (
-          <p>${refundSuccess} has been credited to your account. You can use it for future bookings.</p>
-        )}
+        {refundSuccess != null && <p>${refundSuccess} has been credited to your account. You can use it for future bookings.</p>}
       </Modal>
     </>
   )
 }
 
-function BookingCard({ booking: b, onCancel, onRefund }: {
+function BookingCard({
+  booking: b,
+  onCancel,
+  onWeatherRefund,
+}: {
   booking: EnrichedBooking
-  onCancel: (id: number) => void
-  onRefund: (id: number, amount: number) => void
+  onCancel: (id: number, totalPrice: number, hoursUntil: number | null) => void
+  onWeatherRefund: (id: number, amount: number) => void
 }) {
   const sf = b.surface === 'synthetic_grass' ? 'Synthetic grass' : 'Hard court'
-  const canRefund = b._weather && (b._hoursUntil ?? 0) >= 24
+  const hoursUntil = b._hoursUntil
+  const canCancel = b.status === 'confirmed' && (hoursUntil === null || hoursUntil >= 24)
+  const within24h = b.status === 'confirmed' && hoursUntil !== null && hoursUntil > 0 && hoursUntil < 24
+  const hasWeatherWarning = !!b._weather
+  const canWeatherRefund = hasWeatherWarning && (hoursUntil ?? 0) >= 24
+
   const statusColors: Record<string, string> = {
     confirmed: 'bg-green/10 text-green-text',
     cancelled: 'bg-danger/10 text-[#B83030]',
@@ -294,54 +308,54 @@ function BookingCard({ booking: b, onCancel, onRefund }: {
   }
 
   return (
-    <div className={`bg-white border-[1.5px] border-[#E8E6E1] rounded-[14px] p-4 mb-3 ${b.status !== 'confirmed' ? 'opacity-50' : ''}`}>
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-semibold">{b.court_name}</span>
-        <span className={`text-[10px] font-bold px-2.5 py-[3px] rounded-full uppercase tracking-[0.5px] ${statusColors[b.status] || ''}`}>
+    <div className={`bg-white border-[1.5px] border-[#E8E6E1] rounded-[12px] p-3.5 mb-2.5 ${b.status !== 'confirmed' ? 'opacity-50' : ''}`}>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-[13px] font-semibold">{b.court_name}</span>
+        <span className={`text-[9px] font-bold px-2 py-[2px] rounded-full uppercase tracking-[0.5px] ${statusColors[b.status] || ''}`}>
           {b.status}
         </span>
       </div>
-      <div className="text-xs text-ink-muted mb-[3px] flex items-center gap-[5px]">📐 {sf} court {b.court_number}</div>
-      <div className="text-xs text-ink-muted mb-[3px] flex items-center gap-[5px]">📅 {b.date}</div>
-      <div className="text-xs text-ink-muted mb-[3px] flex items-center gap-[5px]">🕐 {fmtH(b.start_hour)} – {fmtH(b.end_hour)} · {b.players} players</div>
-      <div className="text-[15px] font-bold text-green mt-1.5">${b.total_price}</div>
+      <div className="text-[11px] text-ink-muted mb-[2px] flex items-center gap-[4px]">📐 {sf} court {b.court_number}</div>
+      <div className="text-[11px] text-ink-muted mb-[2px] flex items-center gap-[4px]">📅 {b.date}</div>
+      <div className="text-[11px] text-ink-muted mb-[2px] flex items-center gap-[4px]">
+        🕐 {fmtH(b.start_hour)} – {fmtH(b.end_hour)} · {b.players} players
+      </div>
+      <div className="text-[14px] font-bold text-green mt-1">${b.total_price}</div>
 
       {/* Weather warning */}
-      {b._weather && (
-        <div className="mt-3 p-3 bg-gradient-to-br from-[#FFF8E1] to-[#FFF4D4] border-[1.5px] border-[rgba(232,168,48,0.3)] rounded-[10px]">
-          <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#9A6D00] mb-1.5">⛈ Weather Alert</div>
-          <div className="text-[11.5px] text-[#8A6800] leading-relaxed mb-2.5">
-            {Math.round(b._weather.rain_prob)}% chance of rain on {b.date}
-            {b._weather.description ? ` · ${b._weather.description}` : ''}
-            {b._weather.wind_speed ? ` · Wind ${b._weather.wind_speed} m/s` : ''}
+      {hasWeatherWarning && (
+        <div className="mt-2.5 p-2.5 bg-gradient-to-br from-[#FFF8E1] to-[#FFF4D4] border-[1.5px] border-[rgba(232,168,48,0.3)] rounded-[10px]">
+          <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#9A6D00] mb-1">⛈ Weather Alert</div>
+          <div className="text-[11px] text-[#8A6800] leading-relaxed mb-2">
+            {Math.round(b._weather!.rain_prob)}% chance of rain on {b.date}
+            {b._weather!.description ? ` · ${b._weather!.description}` : ''}
           </div>
-          <div className="text-[10px] text-ink-muted mb-2.5 px-2.5 py-1.5 bg-white/60 rounded-[6px]">
-            📋 Free cancellation available up to 24 hours before your booking.
-          </div>
-          {canRefund ? (
+          {canWeatherRefund ? (
             <button
-              onClick={() => onRefund(b.id, b.total_price)}
-              className="w-full py-2.5 text-center bg-warning text-white rounded-[6px] text-[13px] font-semibold hover:bg-[#D49A20] hover:-translate-y-px transition-all"
+              onClick={() => onWeatherRefund(b.id, b.total_price)}
+              className="w-full py-2 text-center bg-warning text-white rounded-[6px] text-[12px] font-semibold hover:bg-[#D49A20] transition-all"
             >
-              Request Weather Refund — ${b.total_price}
+              Weather Refund — ${b.total_price}
             </button>
           ) : (
-            <button disabled className="w-full py-2.5 text-center bg-warning text-white rounded-[6px] text-[13px] font-semibold opacity-50 cursor-not-allowed">
-              Less than 24hrs — refund unavailable
-            </button>
+            <div className="text-[10px] text-ink-muted">Less than 24hrs — weather refund unavailable</div>
           )}
         </div>
       )}
 
-      {/* Cancel button (no weather warning) */}
-      {b.status === 'confirmed' && !b._weather && (
-        <div className="mt-2.5">
-          <button
-            onClick={() => onCancel(b.id)}
-            className="px-3.5 py-[7px] bg-transparent border-[1.5px] border-[#E8E6E1] rounded-[6px] text-xs font-medium text-ink-muted hover:border-danger hover:text-danger transition-all"
-          >
-            Cancel
-          </button>
+      {/* Cancel/refund button — any confirmed booking >24h away */}
+      {b.status === 'confirmed' && (
+        <div className="mt-2">
+          {canCancel ? (
+            <button
+              onClick={() => onCancel(b.id, b.total_price, hoursUntil ?? null)}
+              className="px-3 py-[6px] bg-transparent border-[1.5px] border-[#E8E6E1] rounded-[6px] text-[11px] font-medium text-ink-muted hover:border-danger hover:text-danger transition-all"
+            >
+              Cancel & refund ${b.total_price}
+            </button>
+          ) : within24h ? (
+            <div className="text-[10px] text-ink-muted">Within 24h — cancellation unavailable</div>
+          ) : null}
         </div>
       )}
     </div>
