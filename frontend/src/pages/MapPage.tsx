@@ -195,6 +195,12 @@ export function MapPage() {
     return list
   }, [filtered, sortBy, userLat, userLng])
 
+  // When sort or list changes, focus selection (and map) on the first item — distance → nearest, price → cheapest, courts → most courts, name → first A–Z
+  const firstId = sorted[0]?.id ?? null
+  useEffect(() => {
+    setSelectedId(firstId)
+  }, [sortBy, firstId])
+
   // ── Suburb autocomplete for search ──
   const allSuburbs = useMemo(() => [...new Set(courts.map((c) => c.suburb))].sort(), [courts])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
@@ -547,6 +553,7 @@ export function MapPage() {
             onSelectCourt={selectCourt}
             onBookCourt={handleQuickBook}
             onViewDetail={handleViewDetail}
+            userPosition={userLat !== null && userLng !== null ? { lat: userLat, lng: userLng } : null}
           />
         </div>
       </div>
