@@ -14,6 +14,8 @@ type Props = {
   selectedVenueId: string | null
   onSelectVenue: (id: string | null) => void
   onViewDetail?: (venueId: string) => void
+  /** When set, map fits to show this point + all venues (zoom to your area after location) */
+  userPosition?: { lat: number; lng: number } | null
 }
 
 function createIcon(venue: Venue, isSelected: boolean) {
@@ -30,7 +32,7 @@ function createIcon(venue: Venue, isSelected: boolean) {
   })
 }
 
-export function VenueMap({ venues, selectedVenueId, onSelectVenue }: Props) {
+export function VenueMap({ venues, selectedVenueId, onSelectVenue, userPosition }: Props) {
   const mapRef = useRef<L.Map | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<Record<string, L.Marker>>({})
@@ -76,22 +78,76 @@ export function VenueMap({ venues, selectedVenueId, onSelectVenue }: Props) {
       marker.on('click', () => onSelectVenue(v.id === selectedVenueId ? null : v.id))
       markersRef.current[v.id] = marker
     })
-  }, [venues, selectedVenueId, onSelectVenue])
 
-  // Fly to selected
+    // Fit bounds: if user position available, only show nearby venues (within 5km)
+    if (userPosition) {
+      const nearby: [number, number][] = venues
+        .filter((v) => {
+          const R = 6371
+          const dLat = ((v.lat - userPosition.lat) * Math.PI) / 180
+          const dLng = ((v.lng - userPosition.lng) * Math.PI) / 180
+          const a = Math.sin(dLat/2)**2 + Math.cos((userPosition.lat*Math.PI)/180)*Math.cos((v.lat*Math.PI)/180)*Math.sin(dLng/2)**2
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) < 5
+        })
+        .map((v) => [v.lat, v.lng] as [number, number])
+      nearby.push([userPosition.lat, userPosition.lng])
+      if (nearby.length === 1) {
+        map.setView(nearby[0], 15)
+      } else {
+        map.fitBounds(L.latLngBounds(nearby), { padding: [40, 40], maxZoom: 16 })
+      }
+    } else {
+      const points: [number, number][] = venues.map((v) => [v.lat, v.lng] as [number, number])
+      if (points.length === 0) return
+      if (points.length === 1) {
+        map.setView(points[0], 14)
+      } else {
+        map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 15 })
+      }
+    }
+  }, [venues, selectedVenueId, onSelectVenue, userPosition])
+
+  // Fly to selected venue (center map on it, same as CourtMap on Map page)
   useEffect(() => {
     if (!selectedVenueId || !mapRef.current) return
-    const marker = markersRef.current[selectedVenueId]
-    if (marker) {
-      marker.openPopup()
+    const venue = venues.find((v) => v.id === selectedVenueId)
+    if (venue) {
+      mapRef.current.flyTo([venue.lat, venue.lng], 15, { duration: 0.5 })
+      markersRef.current[venue.id]?.openPopup()
     }
-  }, [selectedVenueId])
+  }, [selectedVenueId, venues])
 
   const zoomIn = useCallback(() => mapRef.current?.zoomIn(), [])
   const zoomOut = useCallback(() => mapRef.current?.zoomOut(), [])
   const resetView = useCallback(() => {
-    mapRef.current?.flyTo([MAP_CENTER.lat, MAP_CENTER.lng], MAP_ZOOM, { duration: 0.5 })
-  }, [])
+    const map = mapRef.current
+    if (!map) return
+    let points: [number, number][]
+    if (userPosition) {
+      const RADIUS_KM = 5
+      const R = 6371
+      points = venues
+        .filter((v) => {
+          const dLat = ((v.lat - userPosition.lat) * Math.PI) / 180
+          const dLng = ((v.lng - userPosition.lng) * Math.PI) / 180
+          const a = Math.sin(dLat/2)**2 + Math.cos((userPosition.lat*Math.PI)/180)*Math.cos((v.lat*Math.PI)/180)*Math.sin(dLng/2)**2
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) < RADIUS_KM
+        })
+        .map((v) => [v.lat, v.lng] as [number, number])
+      points.push([userPosition.lat, userPosition.lng])
+    } else {
+      points = venues.map((v) => [v.lat, v.lng] as [number, number])
+    }
+    if (points.length === 1) {
+      map.setView(points[0], 14)
+    } else if (points.length > 1) {
+      const bounds = L.latLngBounds(points)
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: userPosition ? 16 : 15 })
+      if (!userPosition && map.getZoom() < 12) map.setZoom(12)
+    } else {
+      map.flyTo([MAP_CENTER.lat, MAP_CENTER.lng], MAP_ZOOM, { duration: 0.5 })
+    }
+  }, [venues, userPosition])
 
   return (
     <div className="relative w-full h-full">

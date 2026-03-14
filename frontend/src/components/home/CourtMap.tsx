@@ -23,6 +23,8 @@ type Props = {
   selectedId: number | null
   onSelectCourt: (id: number) => void
   onBookCourt?: (id: number) => void
+  /** When set, map fits to show this point + all courts (zoom to your area after location) */
+  userPosition?: { lat: number; lng: number } | null
 }
 
 function createIcon(court: Court, isSelected: boolean) {
@@ -39,7 +41,7 @@ function createIcon(court: Court, isSelected: boolean) {
   })
 }
 
-export function CourtMap({ courts, selectedId, onSelectCourt, onBookCourt }: Props) {
+export function CourtMap({ courts, selectedId, onSelectCourt, onBookCourt, userPosition }: Props) {
   const mapRef = useRef<L.Map | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<Record<number, L.Marker>>({})
@@ -119,7 +121,33 @@ export function CourtMap({ courts, selectedId, onSelectCourt, onBookCourt }: Pro
       marker.on('click', () => onSelectCourt(c.id))
       markersRef.current[c.id] = marker
     })
-  }, [courts, selectedId, onSelectCourt])
+
+    if (userPosition) {
+      const nearby: [number, number][] = courts
+        .filter((c) => {
+          const R = 6371
+          const dLat = ((c.lat - userPosition.lat) * Math.PI) / 180
+          const dLng = ((c.lng - userPosition.lng) * Math.PI) / 180
+          const a = Math.sin(dLat/2)**2 + Math.cos((userPosition.lat*Math.PI)/180)*Math.cos((c.lat*Math.PI)/180)*Math.sin(dLng/2)**2
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) < 5
+        })
+        .map((c) => [c.lat, c.lng] as [number, number])
+      nearby.push([userPosition.lat, userPosition.lng])
+      if (nearby.length === 1) {
+        map.setView(nearby[0], 15)
+      } else {
+        map.fitBounds(L.latLngBounds(nearby), { padding: [40, 40], maxZoom: 16 })
+      }
+    } else {
+      const points: [number, number][] = courts.map((c) => [c.lat, c.lng] as [number, number])
+      if (points.length === 0) return
+      if (points.length === 1) {
+        map.setView(points[0], 14)
+      } else {
+        map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 15 })
+      }
+    }
+  }, [courts, selectedId, onSelectCourt, userPosition])
 
   // Expose quick book handler to popup buttons
   useEffect(() => {
@@ -131,7 +159,7 @@ export function CourtMap({ courts, selectedId, onSelectCourt, onBookCourt }: Pro
     }
   }, [onBookCourt])
 
-  // Fly to selected
+  // Fly to selected court (always focus map on the selected one)
   useEffect(() => {
     if (!selectedId || !mapRef.current) return
     const court = courts.find((c) => c.id === selectedId)
@@ -144,8 +172,34 @@ export function CourtMap({ courts, selectedId, onSelectCourt, onBookCourt }: Pro
   const zoomIn = useCallback(() => mapRef.current?.zoomIn(), [])
   const zoomOut = useCallback(() => mapRef.current?.zoomOut(), [])
   const resetView = useCallback(() => {
-    mapRef.current?.flyTo([MAP_CENTER.lat, MAP_CENTER.lng], MAP_ZOOM, { duration: 0.5 })
-  }, [])
+    const map = mapRef.current
+    if (!map) return
+    let points: [number, number][]
+    if (userPosition) {
+      const RADIUS_KM = 5
+      const R = 6371
+      points = courts
+        .filter((c) => {
+          const dLat = ((c.lat - userPosition.lat) * Math.PI) / 180
+          const dLng = ((c.lng - userPosition.lng) * Math.PI) / 180
+          const a = Math.sin(dLat/2)**2 + Math.cos((userPosition.lat*Math.PI)/180)*Math.cos((c.lat*Math.PI)/180)*Math.sin(dLng/2)**2
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) < RADIUS_KM
+        })
+        .map((c) => [c.lat, c.lng] as [number, number])
+      points.push([userPosition.lat, userPosition.lng])
+    } else {
+      points = courts.map((c) => [c.lat, c.lng] as [number, number])
+    }
+    if (points.length === 1) {
+      map.setView(points[0], 14)
+    } else if (points.length > 1) {
+      const bounds = L.latLngBounds(points)
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: userPosition ? 16 : 15 })
+      if (!userPosition && map.getZoom() < 12) map.setZoom(12)
+    } else {
+      map.flyTo([MAP_CENTER.lat, MAP_CENTER.lng], MAP_ZOOM, { duration: 0.5 })
+    }
+  }, [courts, userPosition])
 
   return (
     <div className="relative w-full h-full">
