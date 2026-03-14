@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { format, addDays, parseISO } from 'date-fns'
 import toast from 'react-hot-toast'
 import type { Venue } from '../data/venues'
 import type { TimeSlot } from '../data/booking'
-import { getTimeSlotsForDate } from '../data/booking'
+import { getTimeSlotsForDate, formatCourtLabel, isRangeAvailable, addHoursToTime, MAX_BOOKING_HOURS } from '../data/booking'
 import { fetchSydneyWeather, weatherEmoji } from '../data/weather'
 import { useBooking } from '../context/BookingContext'
 
@@ -14,14 +15,18 @@ interface QuickBookModalProps {
 }
 
 export function QuickBookModal({ venue, onClose }: QuickBookModalProps) {
-  const { addBooking } = useBooking()
+  const { bookings, addBooking } = useBooking()
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [durationHours, setDurationHours] = useState<1 | 2>(1)
   const [weather, setWeather] = useState<Awaited<ReturnType<typeof fetchSydneyWeather>> | null>(null)
 
   const courtCount = Math.min(venue.courts ?? 2, 4)
-  const slots = getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours)
+  const slots = getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours, bookings)
   const availableSlots = slots.filter((s) => s.available)
+  const slotsForDuration = durationHours === 2
+    ? availableSlots.filter((s) => isRangeAvailable(venue.id, selectedDate, s.courtId, s.start, 2, slots))
+    : availableSlots
 
   useEffect(() => {
     fetchSydneyWeather().then(setWeather).catch(() => setWeather(null))
@@ -29,16 +34,26 @@ export function QuickBookModal({ venue, onClose }: QuickBookModalProps) {
 
   const handleConfirm = () => {
     if (!selectedSlot) return
-    addBooking(venue, selectedDate, selectedSlot)
-    toast.success(`Booked ${venue.name} — ${format(selectedDate, 'EEE d MMM')} ${selectedSlot.start}–${selectedSlot.end}`)
+    const endTime = durationHours === 2 ? addHoursToTime(selectedSlot.start, 2) : selectedSlot.end
+    const freshSlots = getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours, bookings)
+    const stillAvailable = durationHours === 2
+      ? isRangeAvailable(venue.id, selectedDate, selectedSlot.courtId, selectedSlot.start, 2, freshSlots)
+      : freshSlots.some((s) => s.id === selectedSlot.id && s.available)
+    if (!stillAvailable) {
+      toast.error('This slot was just taken. Please pick another.')
+      return
+    }
+    addBooking(venue, selectedDate, selectedSlot, durationHours === 2 ? endTime : undefined)
+    const rangeLabel = durationHours === 2 ? `${selectedSlot.start}–${endTime}` : `${selectedSlot.start}–${selectedSlot.end}`
+    toast.success(`Booked ${venue.name} — ${format(selectedDate, 'EEE d MMM')} ${rangeLabel} (${formatCourtLabel(selectedSlot.courtId)})`)
     onClose()
   }
 
   const dateOptions = [0, 1, 2, 3, 4, 5, 6].map((d) => addDays(new Date(), d))
   const dayForecast = weather?.daily.find((x) => x.date === format(selectedDate, 'yyyy-MM-dd'))
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40" onClick={onClose} aria-modal="true" role="dialog">
       <div
         className="bg-white rounded-[20px] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-[var(--border)]"
         onClick={(e) => e.stopPropagation()}
@@ -97,12 +112,30 @@ export function QuickBookModal({ venue, onClose }: QuickBookModalProps) {
           )}
 
           <div>
+            <p className="text-xs text-bark-lt mb-2">Duration</p>
+            <div className="flex gap-2 mb-3">
+              {([1, 2] as const).map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => { setDurationHours(h); setSelectedSlot(null) }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border ${
+                    durationHours === h ? 'bg-g50 border-g200 text-g800' : 'border-[var(--border)] text-bark-lt hover:bg-g50'
+                  }`}
+                >
+                  {h}h
+                </button>
+              ))}
+              <span className="text-[11px] text-bark-lt self-center">(max {MAX_BOOKING_HOURS}h)</span>
+            </div>
             <p className="text-xs text-bark-lt mb-2">Time — {format(selectedDate, 'EEE d MMM')}</p>
-            {availableSlots.length === 0 ? (
-              <p className="text-sm text-bark-lt">No slots this day. Try another date.</p>
+            {slotsForDuration.length === 0 ? (
+              <p className="text-sm text-bark-lt">
+                {availableSlots.length === 0 ? 'No slots this day. Try another date.' : `No ${durationHours}h slots. Try 1h or another date.`}
+              </p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {availableSlots.map((slot) => (
+                {slotsForDuration.map((slot) => (
                   <button
                     key={slot.id}
                     type="button"
@@ -113,8 +146,8 @@ export function QuickBookModal({ venue, onClose }: QuickBookModalProps) {
                         : 'border-[var(--border)] hover:bg-g50'
                     }`}
                   >
-                    <div>{slot.start}</div>
-                    <div className="text-[10px] text-bark-lt">{slot.courtId}</div>
+                    <div>{slot.start}{durationHours === 2 ? `–${addHoursToTime(slot.start, 2)}` : ''}</div>
+                    <div className="text-[10px] text-bark-lt">{formatCourtLabel(slot.courtId)}</div>
                   </button>
                 ))}
               </div>
@@ -138,4 +171,6 @@ export function QuickBookModal({ venue, onClose }: QuickBookModalProps) {
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
