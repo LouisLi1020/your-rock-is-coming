@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom'
 
+/**
+ * Alternative header component (backup / optional).
+ * Current UI uses Nav.tsx (top bar) + LeftPanel brand block instead.
+ */
 export function Header() {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">

@@ -1,6 +1,10 @@
 # Node
 node_modules/
 
+# SQLite WAL (generated at runtime)
+db/*.db-wal
+db/*.db-shm
+
 # Builds
 frontend/dist/
 frontend/.vite/
@@ -13,6 +17,12 @@ frontend/vite.config.js
 npm-debug.log*
 .yarn-debug.log*
 .yarn-error.log*
+
+# Internal / contributor docs (reference only, not for public repo)
+docs-internal/
+
+# Legacy standalone HTML (no longer used; reference only, keep local)
+docs/legacy/
 
 # Editor
 .vscode/

@@ -1,4 +1,4 @@
-// src/context/BookingContext.tsx — 替换 frontend/src/context/BookingContext.tsx
+// src/context/BookingContext.tsx
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import { getBookings, createBooking, cancelBooking, refundBooking } from '../api/bookings'
 import type { Booking, CreateBookingPayload } from '../api/bookings'
@@ -41,8 +41,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     try {
       const res = await getBookings(userEmail)
       if (res.success) setBookings(res.bookings)
-    } catch (e) {
-      console.error('Failed to load bookings', e)
+    } catch {
+      // Backend not running (e.g. frontend-only demo): use empty list, no console spam
+      setBookings([])
     } finally {
       setLoading(false)
     }

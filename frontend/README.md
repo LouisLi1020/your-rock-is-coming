@@ -1,6 +1,6 @@
 # Frontend — your·rock·is·coming
 
-React SPA for discovering and booking Sydney tennis courts.
+React SPA for discovering and booking Sydney tennis courts. This is the main app UI.
 
 ## Run
 
@@ -9,7 +9,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Open **http://localhost:3000** (see `vite.config.ts`: dev server port 3000, `/api` proxied to backend on 3001).
+
+**Without backend:** The app uses mock venues and `localStorage` for bookings; no server required.
 
 ## Build
 
@@ -17,12 +19,12 @@ Open http://localhost:5173
 npm run build
 ```
 
-Output in `dist/`.
+Output in `dist/`. The root backend serves this via `express.static('frontend/dist')`.
 
 ## Stack
 
 - React 18, TypeScript, Vite 8
-- Tailwind CSS, Leaflet/react-leaflet
-- Open-Meteo (weather), react-hot-toast, date-fns
+- Tailwind CSS, Leaflet / react-leaflet, react-router-dom
+- Open-Meteo (weather), react-hot-toast, date-fns, lucide-react
 
-See repo root **README.md** for full feature list and project structure.
+See repo root **README.md** for full feature list, API, and project structure.

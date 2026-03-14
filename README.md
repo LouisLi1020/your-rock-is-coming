@@ -2,22 +2,38 @@
 
 Find and book tennis courts across Sydney. One place to discover venues, check weather, and book — rain or shine.
 
+**UniHack 2026**
+
 ---
 
-## Frontend (React) — Demo
+## Tech stack
 
-The main demo is a **React + Vite** SPA with map, filters, quick book, and 7-day weather.
+| Layer   | Stack |
+|--------|--------|
+| **Frontend** | React 18, TypeScript, Vite 8, Tailwind CSS, Leaflet / react-leaflet, react-router-dom |
+| **Backend**  | Node.js, Express, SQLite (better-sqlite3) |
+| **APIs**     | Open-Meteo (weather, no key), optional OpenWeatherMap for backend |
 
-### Tech stack
+---
 
-- **React 18** + **TypeScript** + **Vite 8**
-- **Tailwind CSS** — design tokens (Lora, Plus Jakarta Sans, sand/bark/green palette)
-- **Leaflet** + **react-leaflet** — interactive Sydney map
-- **Open-Meteo API** — 7-day weather (no API key)
-- **react-hot-toast** — notifications
-- **date-fns** — calendar and dates
+## Quick start
 
-### Quick start
+### Option A: Full stack (frontend + backend)
+
+From repo root:
+
+```bash
+npm install
+npm run seed    # optional: seed DB (or npm run migrate)
+npm run dev:all
+```
+
+- **Frontend:** http://localhost:3000  
+- **Backend API:** http://localhost:3001  
+
+The frontend proxies `/api` to the backend. Bookings and courts come from the API (and SQLite).
+
+### Option B: Frontend only
 
 ```bash
 cd frontend
@@ -25,82 +41,63 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173**
-
-### Features (demo)
-
-- **Discover** — Hero search, filter chips (surface, indoor/outdoor), venue cards with summary, stats row
-- **Map** — Interactive map; click markers to select venues; popup with “View details”
-- **Venue cards** — “View detail” (full venue page) and “Quick book” (modal: date + time slot + 7-day weather)
-- **Book by calendar** (`/book`) — Pick venue, date from month calendar, then time slot; 7-day weather shown
-- **7-day weather** — Sydney forecast in Hero, Quick book modal, and Calendar book; rain warning when precipitation is likely
-- **My Bookings** (`/bookings`) — List and cancel bookings (stored in `localStorage`)
-- **Profile** (`/profile`) — Optional email for confirmations
-- **Toasts** — Success messages on book and profile save
-
-### Frontend structure
-
-```
-frontend/
-├── index.html
-├── src/
-│   ├── App.tsx              # Routes
-│   ├── main.tsx
-│   ├── styles.css           # Tailwind + tokens
-│   ├── components/          # Nav, Hero, VenueCard, VenueMap, QuickBookModal, WeatherWidget, …
-│   ├── pages/               # Home, MapPage, BookingsPage, ProfilePage, CalendarBookPage, VenueDetail, BookCourt
-│   ├── data/                # venues.ts, booking.ts, weather.ts
-│   ├── hooks/               # useFilteredVenues
-│   └── context/             # BookingContext (bookings + guest email)
-├── package.json
-├── tailwind.config.js
-└── vite.config.ts
-```
+Open **http://localhost:3000**. The app uses **mock venue data** and **localStorage** for bookings when the backend is not running (no need to start the server).
 
 ---
 
-## Backend (optional)
+## Project structure
 
-A **Node.js + Express + SQLite** API exists at repo root for a full-stack setup (courts CRUD, bookings, weather proxy).
-
-### Quick start (backend)
-
-```bash
-npm install
-npm run seed
-npm start
-# Server at http://localhost:3000
+```
+├── frontend/           # React SPA (main app)
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── components/   # Nav, Hero, VenueCard, VenueMap, QuickBookModal, WeatherWidget, …
+│   │   ├── pages/        # Home, MapPage, BookingsPage, CalendarBookPage, VenueDetail, …
+│   │   ├── api/          # courts, bookings, weather client
+│   │   ├── data/         # venues type, mock data, booking helpers
+│   │   ├── hooks/        # useCourtsAsVenues, useFilteredVenues
+│   │   └── context/      # BookingContext
+│   ├── index.html
+│   └── vite.config.ts   # dev port 3000, proxy /api → localhost:3001
+├── server.js            # Express API
+├── db/                  # SQLite (schema, seed, migrate)
+├── package.json         # backend deps + scripts (dev, dev:all, seed, migrate)
+└── README.md
 ```
 
-### Backend structure
-
-- **server.js** — Express API
-- **db/** — SQLite (better-sqlite3), schema, seed
-- **public/** — Static assets
-
-See API endpoints and schema in the sections below if you need to connect the frontend to this backend.
+- **Backend** serves the built frontend via `express.static('frontend/dist')`; run `npm run build` in `frontend/` before deploying.
 
 ---
 
-## API Endpoints (backend)
+## Features
+
+- **Discover** — Search, filter chips (surface, indoor/outdoor, facilities), venue cards, stats
+- **Map** — Sydney map with markers; click for venue popup and “View details”
+- **Venue detail** — Full page per venue; “Quick book” opens modal (date, time, 7-day weather)
+- **Book** (`/book`) — Pick venue, date (calendar), time slot; 7-day weather; submit booking
+- **Schedule** (`/bookings`) — List and cancel bookings (API or localStorage when backend is off)
+- **Profile** (`/profile`) — Demo user / contact info for confirmations
+- **Weather** — 7-day forecast in hero, quick book, and calendar book; rain warning when relevant
+
+---
+
+## Backend API
 
 ### Courts
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/courts` | List all courts (with filters) |
-| GET | `/api/courts/:id` | Get single court |
-| GET | `/api/courts/:id/availability?date=YYYY-MM-DD` | Get availability grid |
-
-**Filter params for `/api/courts`:** `q`, `surface`, `lights`, `parking`, `min_courts`, `suburb`
+| GET | `/api/courts` | List courts (optional: `q`, `surface`, `lights`, `parking`, `toilet`, `min_courts`, `suburb`) |
+| GET | `/api/courts/:id` | Single court |
+| GET | `/api/courts/:id/availability?date=YYYY-MM-DD` | Availability grid |
 
 ### Bookings
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/bookings` | Create a booking |
-| GET | `/api/bookings?email=xxx` | Get bookings by email |
-| DELETE | `/api/bookings/:id` | Cancel a booking |
+| POST | `/api/bookings` | Create booking |
+| GET | `/api/bookings?email=xxx` | List by email |
+| DELETE | `/api/bookings/:id` | Cancel booking |
 
 ### Weather
 
@@ -109,11 +106,23 @@ See API endpoints and schema in the sections below if you need to connect the fr
 | GET | `/api/weather/:courtId?date=YYYY-MM-DD` | Weather for one court |
 | GET | `/api/weather/bulk?date=YYYY-MM-DD` | Weather for all courts |
 
-**Weather API:** Optional OpenWeatherMap key via `OPENWEATHER_API_KEY`. Without it, weather responses show “Weather unavailable”.
+Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns fallback data.
 
 ---
 
-## UniHack / project vision
+## Scripts (root)
 
-- **Vision:** One platform for Sydney tennis — venues, coaches, booking, opening hours, weather-aware flows.
-- **Roadmap:** See project docs in `docs/` and the original vision in the repo history.
+| Script | Description |
+|--------|-------------|
+| `npm start` | Backend only, port 3000 |
+| `npm run dev` | Backend only, port **3001** (for dev:all) |
+| `npm run dev:frontend` | Frontend dev (port 3000) |
+| `npm run dev:all` | Backend (3001) + frontend (3000) |
+| `npm run seed` | Seed SQLite DB |
+| `npm run migrate` | Run DB migrations |
+
+---
+
+## Vision
+
+One platform for Sydney tennis: venues, booking, opening hours, weather-aware flows. See repo history and any docs in `docs/` for roadmap and design notes.

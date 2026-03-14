@@ -1,4 +1,4 @@
-// src/App.tsx — 替换 frontend/src/App.tsx
+// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { BookingProvider, useBooking } from './context/BookingContext'
