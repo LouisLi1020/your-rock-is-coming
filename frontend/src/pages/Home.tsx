@@ -37,7 +37,7 @@ export function Home() {
       <StatsRow venueCount={filteredVenues.length} suburbCount={suburbSet.size} courtCount={courtCount} />
 
       <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 gap-6">
-        <div className="lg:w-[420px] lg:flex-shrink-0 lg:max-h-[calc(100vh-20rem)] flex flex-col">
+        <div className="lg:min-w-[420px] lg:max-w-[55%] lg:w-[520px] lg:flex-shrink-0 lg:max-h-[calc(100vh-20rem)] flex flex-col lg:bg-white/80 lg:rounded-2xl lg:border lg:border-[var(--border)] lg:p-5 lg:shadow-sm">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="font-lora text-lg font-semibold text-bark">Venues near you</h2>
             <a href="/map" className="text-xs font-medium text-g600 hover:underline">View on map →</a>

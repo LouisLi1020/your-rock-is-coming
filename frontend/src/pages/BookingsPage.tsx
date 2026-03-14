@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Nav } from '../components/Nav'
 import { useBooking } from '../context/BookingContext'
+import { formatCourtLabel } from '../data/booking'
 import { format, parseISO } from 'date-fns'
 
 export function BookingsPage() {
@@ -27,7 +28,7 @@ export function BookingsPage() {
                 <div>
                   <p className="font-semibold text-bark">{b.venueName}</p>
                   <p className="text-sm text-bark-lt">
-                    {format(parseISO(b.date), 'EEE d MMM yyyy')} · {b.start}–{b.end} · {b.courtId}
+                    {format(parseISO(b.date), 'EEE d MMM yyyy')} · {b.start}–{b.end} · {formatCourtLabel(b.courtId)}
                   </p>
                 </div>
                 <div className="flex gap-2">

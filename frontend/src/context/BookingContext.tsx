@@ -15,7 +15,8 @@ export type BookingRecord = {
 
 type BookingContextValue = {
   bookings: BookingRecord[]
-  addBooking: (venue: Venue, date: Date, slot: TimeSlot) => void
+  /** Add a booking. Use endOverride for multi-hour (e.g. 2h: endOverride = "09:00" when slot.start is "07:00"). */
+  addBooking: (venue: Venue, date: Date, slot: TimeSlot, endOverride?: string) => void
   removeBooking: (id: string) => void
   /** Guest profile for one-click book (optional) */
   guestEmail: string | null
@@ -54,14 +55,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(EMAIL_KEY)
   }, [])
 
-  const addBooking = useCallback((venue: Venue, date: Date, slot: TimeSlot) => {
+  const addBooking = useCallback((venue: Venue, date: Date, slot: TimeSlot, endOverride?: string) => {
     const record: BookingRecord = {
       id: `book-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       venueId: venue.id,
       venueName: venue.name,
       date: date.toISOString().slice(0, 10),
       start: slot.start,
-      end: slot.end,
+      end: endOverride ?? slot.end,
       courtId: slot.courtId,
       createdAt: Date.now(),
     }

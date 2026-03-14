@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Nav } from '../components/Nav'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, parseISO } from 'date-fns'
-import { getTimeSlotsForDate } from '../data/booking'
+import { getTimeSlotsForDate, formatCourtLabel, isRangeAvailable, addHoursToTime, MAX_BOOKING_HOURS } from '../data/booking'
 import { fetchSydneyWeather, weatherEmoji } from '../data/weather'
 import { venues } from '../data/venues'
 import { getVenueById } from '../data/venues'
@@ -11,12 +11,19 @@ import toast from 'react-hot-toast'
 import type { TimeSlot } from '../data/booking'
 
 export function CalendarBookPage() {
+  const [searchParams] = useSearchParams()
+  const venueFromUrl = searchParams.get('venue')
   const [month, setMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [venueId, setVenueId] = useState<string>(venues[0]?.id ?? '')
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [durationHours, setDurationHours] = useState<1 | 2>(1)
   const [weather, setWeather] = useState<Awaited<ReturnType<typeof fetchSydneyWeather>> | null>(null)
-  const { addBooking } = useBooking()
+  const { bookings, addBooking } = useBooking()
+
+  useEffect(() => {
+    if (venueFromUrl && getVenueById(venueFromUrl)) setVenueId(venueFromUrl)
+  }, [venueFromUrl])
 
   const venue = venueId ? getVenueById(venueId) : undefined
   const monthStart = startOfMonth(month)
@@ -24,9 +31,12 @@ export function CalendarBookPage() {
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
   const courtCount = Math.min(venue?.courts ?? 2, 4)
   const slots = selectedDate && venue
-    ? getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours)
+    ? getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours, bookings)
     : []
   const availableSlots = slots.filter((s) => s.available)
+  const slotsForDuration = durationHours === 2 && selectedDate && venue
+    ? availableSlots.filter((s) => isRangeAvailable(venue.id, selectedDate, s.courtId, s.start, 2, slots))
+    : availableSlots
 
   useEffect(() => {
     fetchSydneyWeather().then(setWeather).catch(() => setWeather(null))
@@ -34,8 +44,18 @@ export function CalendarBookPage() {
 
   const handleConfirm = () => {
     if (!venue || !selectedDate || !selectedSlot) return
-    addBooking(venue, selectedDate, selectedSlot)
-    toast.success(`Booked ${venue.name} — ${format(selectedDate, 'EEE d MMM')} ${selectedSlot.start}–${selectedSlot.end}`)
+    const endTime = durationHours === 2 ? addHoursToTime(selectedSlot.start, 2) : selectedSlot.end
+    const freshSlots = getTimeSlotsForDate(venue.id, selectedDate, courtCount, venue.openingHours, bookings)
+    const stillAvailable = durationHours === 2
+      ? isRangeAvailable(venue.id, selectedDate, selectedSlot.courtId, selectedSlot.start, 2, freshSlots)
+      : freshSlots.some((s) => s.id === selectedSlot.id && s.available)
+    if (!stillAvailable) {
+      toast.error('This slot was just taken. Please pick another.')
+      return
+    }
+    addBooking(venue, selectedDate, selectedSlot, durationHours === 2 ? endTime : undefined)
+    const rangeLabel = durationHours === 2 ? `${selectedSlot.start}–${endTime}` : `${selectedSlot.start}–${selectedSlot.end}`
+    toast.success(`Booked ${venue.name} — ${format(selectedDate, 'EEE d MMM')} ${rangeLabel} (${formatCourtLabel(selectedSlot.courtId)})`)
     setSelectedSlot(null)
     setSelectedDate(null)
   }
@@ -133,15 +153,32 @@ export function CalendarBookPage() {
 
             {selectedDate && (
               <div className="bg-white rounded-[20px] border border-[var(--border)] p-5">
-                <p className="text-sm text-bark-lt mb-3">
+                <p className="text-sm text-bark-lt mb-2">
                   {format(selectedDate, 'EEEE d MMM')} — {venue?.name}
                 </p>
-                {availableSlots.length === 0 ? (
-                  <p className="text-sm text-bark-lt">No slots. Try another date.</p>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {([1, 2] as const).map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => { setDurationHours(h); setSelectedSlot(null) }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                        durationHours === h ? 'bg-g50 border-g200 text-g800' : 'border-[var(--border)] text-bark-lt hover:bg-g50'
+                      }`}
+                    >
+                      {h}h
+                    </button>
+                  ))}
+                  <span className="text-[11px] text-bark-lt">(max {MAX_BOOKING_HOURS}h)</span>
+                </div>
+                {slotsForDuration.length === 0 ? (
+                  <p className="text-sm text-bark-lt">
+                    {availableSlots.length === 0 ? 'No slots. Try another date.' : `No ${durationHours}h slots. Try 1h or another date.`}
+                  </p>
                 ) : (
                   <>
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                      {availableSlots.map((slot) => (
+                      {slotsForDuration.map((slot) => (
                         <button
                           key={slot.id}
                           type="button"
@@ -150,7 +187,8 @@ export function CalendarBookPage() {
                             selectedSlot?.id === slot.id ? 'bg-g50 border-g200 font-semibold' : 'border-[var(--border)]'
                           }`}
                         >
-                          {slot.start}
+                          <div>{slot.start}{durationHours === 2 ? `–${addHoursToTime(slot.start, 2)}` : ''}</div>
+                          <div className="text-[10px] text-bark-lt">{formatCourtLabel(slot.courtId)}</div>
                         </button>
                       ))}
                     </div>
