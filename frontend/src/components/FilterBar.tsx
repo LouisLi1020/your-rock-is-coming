@@ -1,9 +1,11 @@
 import { Search } from 'lucide-react'
 
 export interface FilterState {
-  surface: string
+  surface: string       // 'all' | 'hard' | 'synthetic'
   location: string
-  indoorOutdoor: string
+  lights: boolean
+  parking: boolean
+  minCourts: number    // 0 = any, 4 = 4+ courts
 }
 
 interface FilterBarProps {
@@ -34,29 +36,31 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
             onChange={(e) => set({ surface: e.target.value })}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           >
-            <option value="all">All Surfaces</option>
-            <option value="hard">Hard Court</option>
-            <option value="grass">Grass</option>
-            <option value="clay">Clay</option>
-            <option value="synthetic">Synthetic</option>
-            <option value="artificial">Artificial Grass</option>
+            <option value="all">All</option>
+            <option value="hard">Hard court</option>
+            <option value="synthetic">Synthetic grass</option>
           </select>
-          <select
-            value={filters.indoorOutdoor}
-            onChange={(e) => set({ indoorOutdoor: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="all">Indoor & Outdoor</option>
-            <option value="indoor">Indoor Only</option>
-            <option value="outdoor">Outdoor Only</option>
-          </select>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.lights} onChange={(e) => set({ lights: e.target.checked })} />
+            <span className="text-sm">Lights</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.parking} onChange={(e) => set({ parking: e.target.checked })} />
+            <span className="text-sm">Parking</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={filters.minCourts >= 4} onChange={(e) => set({ minCourts: e.target.checked ? 4 : 0 })} />
+            <span className="text-sm">4+ courts</span>
+          </label>
           <button
             type="button"
             onClick={() =>
               onFiltersChange({
                 surface: 'all',
                 location: '',
-                indoorOutdoor: 'all',
+                lights: false,
+                parking: false,
+                minCourts: 0,
               })
             }
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

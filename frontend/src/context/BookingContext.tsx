@@ -1,95 +1,96 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import type { Venue } from '../data/venues'
-import type { TimeSlot } from '../data/booking'
+// src/context/BookingContext.tsx — 替换 frontend/src/context/BookingContext.tsx
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { getBookings, createBooking, cancelBooking, refundBooking } from '../api/bookings'
+import type { Booking, CreateBookingPayload } from '../api/bookings'
 
-export type BookingRecord = {
-  id: string
-  venueId: string
-  venueName: string
-  date: string
-  start: string
-  end: string
-  courtId: string
-  createdAt: number
-}
+// ═══ Mock 用户（demo 模式自动登录）═══
+export const DEMO_USER = {
+  name: 'Alex Demo',
+  email: 'demo@courtfinder.com',
+  phone: '0400000000',
+} as const
 
 type BookingContextValue = {
-  bookings: BookingRecord[]
-  /** Add a booking. Use endOverride for multi-hour (e.g. 2h: endOverride = "09:00" when slot.start is "07:00"). */
-  addBooking: (venue: Venue, date: Date, slot: TimeSlot, endOverride?: string) => void
-  removeBooking: (id: string) => void
-  /** Guest profile for one-click book (optional) */
-  guestEmail: string | null
-  setGuestEmail: (email: string | null) => void
-}
-
-const STORAGE_KEY = 'yrbc-bookings'
-const EMAIL_KEY = 'yrbc-guest-email'
-
-function loadBookings(): BookingRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as BookingRecord[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function saveBookings(list: BookingRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+  bookings: Booking[]
+  loading: boolean
+  /** Refresh bookings from API */
+  refresh: () => Promise<void>
+  /** Create a booking via API */
+  addBooking: (data: CreateBookingPayload) => Promise<{ success: boolean; error?: string }>
+  /** Cancel a booking via API */
+  removeBooking: (id: number) => Promise<void>
+  /** Weather refund via API */
+  requestRefund: (id: number) => Promise<{ success: boolean; refund_amount?: number; error?: string }>
+  /** Current user email */
+  userEmail: string
+  /** My Bookings slide panel (right side, like index) */
+  bookingsPanelOpen: boolean
+  setBookingsPanelOpen: (open: boolean) => void
 }
 
 const BookingContext = createContext<BookingContextValue | null>(null)
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [bookings, setBookings] = useState<BookingRecord[]>(loadBookings)
-  const [guestEmail, setGuestEmailState] = useState<string | null>(() =>
-    localStorage.getItem(EMAIL_KEY)
-  )
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [loading, setLoading] = useState(false)
+  const [bookingsPanelOpen, setBookingsPanelOpen] = useState(false)
+  const userEmail = DEMO_USER.email
 
-  const setGuestEmail = useCallback((email: string | null) => {
-    setGuestEmailState(email)
-    if (email) localStorage.setItem(EMAIL_KEY, email)
-    else localStorage.removeItem(EMAIL_KEY)
-  }, [])
-
-  const addBooking = useCallback((venue: Venue, date: Date, slot: TimeSlot, endOverride?: string) => {
-    const record: BookingRecord = {
-      id: `book-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      venueId: venue.id,
-      venueName: venue.name,
-      date: date.toISOString().slice(0, 10),
-      start: slot.start,
-      end: endOverride ?? slot.end,
-      courtId: slot.courtId,
-      createdAt: Date.now(),
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await getBookings(userEmail)
+      if (res.success) setBookings(res.bookings)
+    } catch (e) {
+      console.error('Failed to load bookings', e)
+    } finally {
+      setLoading(false)
     }
-    setBookings((prev) => {
-      const next = [...prev, record]
-      saveBookings(next)
-      return next
-    })
-  }, [])
+  }, [userEmail])
 
-  const removeBooking = useCallback((id: string) => {
-    setBookings((prev) => {
-      const next = prev.filter((b) => b.id !== id)
-      saveBookings(next)
-      return next
-    })
-  }, [])
+  // Load bookings on mount
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const addBooking = useCallback(async (data: CreateBookingPayload) => {
+    try {
+      const res = await createBooking(data)
+      if (res.success) {
+        await refresh()
+        return { success: true }
+      }
+      return { success: false, error: res.error || 'Booking failed' }
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Network error' }
+    }
+  }, [refresh])
+
+  const removeBooking = useCallback(async (id: number) => {
+    try {
+      await cancelBooking(id, userEmail)
+      await refresh()
+    } catch (e) {
+      console.error('Cancel failed', e)
+    }
+  }, [userEmail, refresh])
+
+  const requestRefund = useCallback(async (id: number) => {
+    try {
+      const res = await refundBooking(id, userEmail)
+      if (res.success) {
+        await refresh()
+        return { success: true, refund_amount: res.refund_amount }
+      }
+      return { success: false, error: res.error }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  }, [userEmail, refresh])
 
   return (
     <BookingContext.Provider
-      value={{
-        bookings,
-        addBooking,
-        removeBooking,
-        guestEmail,
-        setGuestEmail,
-      }}
+      value={{ bookings, loading, refresh, addBooking, removeBooking, requestRefund, userEmail, bookingsPanelOpen, setBookingsPanelOpen }}
     >
       {children}
     </BookingContext.Provider>

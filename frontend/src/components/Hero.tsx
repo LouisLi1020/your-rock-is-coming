@@ -11,8 +11,8 @@ interface HeroProps {
 export function Hero({ searchQuery, onSearchChange, onSearchSubmit }: HeroProps) {
   const [focused, setFocused] = useState(false)
   return (
-    <div className="max-w-[900px] mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+    <div className="w-full pt-8 sm:pt-10 pb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-start">
         <div>
           <p className="text-[11px] font-semibold tracking-widest uppercase text-t400 mb-3">
             Sydney Tennis Platform

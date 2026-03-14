@@ -155,6 +155,27 @@ function cancelBooking(bookingId, email) {
   getDB().prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").run(bookingId);
   return { success: true };
 }
+/**
+ * Refund a booking (weather-related)
+ */
+function refundBooking(bookingId, email) {
+  const booking = getDB().prepare('SELECT * FROM bookings WHERE id = ?').get(bookingId);
+  if (!booking) return { success: false, error: 'Booking not found' };
+  if (booking.booker_email !== email) return { success: false, error: 'Email does not match booking' };
+  if (booking.status !== 'confirmed') return { success: false, error: 'Only confirmed bookings can be refunded' };
+
+  // Check 24hr rule: booking date must be > 24hrs away
+  const now = new Date();
+  const bookingDate = new Date(booking.date + 'T' + String(booking.start_hour).padStart(2,'0') + ':00:00');
+  const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
+  if (hoursUntil < 24) {
+    return { success: false, error: 'Weather refunds must be requested at least 24 hours before the booking.' };
+  }
+
+  getDB().prepare("UPDATE bookings SET status = 'refunded' WHERE id = ?").run(bookingId);
+  return { success: true, refund_amount: booking.total_price };
+}
+
 
 /**
  * Get all bookings for an email address
@@ -200,6 +221,7 @@ module.exports = {
   checkConflict,
   createBooking,
   cancelBooking,
+  refundBooking,
   getBookingsByEmail,
   getCachedWeather,
   cacheWeather

@@ -5,7 +5,9 @@ import type { FilterState } from '../components/FilterBar'
 const defaultFilters: FilterState = {
   surface: 'all',
   location: '',
-  indoorOutdoor: 'all',
+  lights: false,
+  parking: false,
+  minCourts: 0,
 }
 
 export function useFilteredVenues(venueList: Venue[]) {
@@ -23,13 +25,12 @@ export function useFilteredVenues(venueList: Venue[]) {
           return false
       }
       if (filters.surface !== 'all') {
-        const match = v.surfaceTypes.some((s) =>
-          s.toLowerCase().includes(filters.surface.toLowerCase())
-        )
-        if (!match) return false
+        if (filters.surface === 'hard' && v.surface_api !== 'hard') return false
+        if (filters.surface === 'synthetic' && v.surface_api !== 'synthetic_grass') return false
       }
-      if (filters.indoorOutdoor === 'indoor' && !v.indoor) return false
-      if (filters.indoorOutdoor === 'outdoor' && !v.outdoor) return false
+      if (filters.lights && !v.nightLighting) return false
+      if (filters.parking && !v.amenities?.includes('Parking')) return false
+      if (filters.minCourts >= 4 && (v.courts ?? 0) < 4) return false
       return true
     })
   }, [venueList, filters])
