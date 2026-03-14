@@ -38,6 +38,7 @@ export function VenueDetail() {
   const [venue, setVenue] = useState<Venue | null | undefined>(undefined)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [daySlots, setDaySlots] = useState<Awaited<ReturnType<typeof availabilityGridToSlots>>>([])
+  const hasToilets = !!venue?.amenities?.some((a) => a.toLowerCase().includes('toilet'))
 
   useEffect(() => {
     if (!venueId) {
@@ -222,7 +223,11 @@ export function VenueDetail() {
                 <div className={`flex items-center p-4 rounded-xl sm:col-span-2 ${venue.nightLighting ? 'bg-a50/50' : 'bg-gray-100'}`}>
                   <Calendar className={`w-6 h-6 mr-3 flex-shrink-0 ${venue.nightLighting ? 'text-a400' : 'text-gray-400'}`} />
                   <span className={venue.nightLighting ? 'text-bark' : 'text-gray-500'}>
-                    {venue.nightLighting ? 'Night lighting available' : 'No night lighting'}
+                    {venue.nightLighting
+                      ? venue.lights_price && venue.lights_price > 0
+                        ? `Night lighting available — approx +$${venue.lights_price} per hr after 6pm`
+                        : 'Night lighting available — included in hourly price'
+                      : 'No night lighting'}
                   </span>
                 </div>
               </div>
@@ -232,6 +237,12 @@ export function VenueDetail() {
             {(venue.amenities?.length ?? 0) > 0 && (
               <section className="bg-white rounded-xl p-6 shadow-sm border border-[var(--border)]">
                 <h2 className="text-bark font-lora font-semibold text-lg mb-4">Facilities & amenities</h2>
+                <div className="mb-3 text-sm text-bark-lt">
+                  Toilets:{' '}
+                  <span className="font-medium text-bark">
+                    {hasToilets ? 'Available' : 'Not available'}
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {venue.amenities!.map((a, i) => {
                     const key = a.toLowerCase().replace(/\s+/g, '')

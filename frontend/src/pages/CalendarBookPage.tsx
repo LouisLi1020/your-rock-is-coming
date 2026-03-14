@@ -324,6 +324,17 @@ export function CalendarBookPage() {
                       const slot = sorted.find((x) => x.hour <= hr)
                       return slot?.rain_prob ?? null
                     }
+                    const getDryIndexForHour = (hr: number) => {
+                      const data = hourlies.find((x) => x.hour === hr)
+                      if (!data) return null
+                      const temp = data.temp_c ?? 20
+                      const rain = data.rain_prob ?? 0
+                      const base = 60
+                      const tempBoost = (temp - 18) * 1.5
+                      const rainPenalty = rain * 0.7
+                      const score = Math.max(0, Math.min(100, Math.round(base + tempBoost - rainPenalty)))
+                      return score
+                    }
                     return (
                       <div className="border border-[var(--border)] rounded-[14px] p-3 sm:p-4">
                         <div className="text-[13px] font-semibold text-bark mb-2 flex items-center gap-2">
@@ -362,6 +373,31 @@ export function CalendarBookPage() {
                               </span>
                             </div>
                           ))}
+                        </div>
+                        <div className="mt-3">
+                          <div className="text-[13px] font-semibold text-bark mb-1">Dryness index (court ready)</div>
+                          {hourlyWeatherLoading ? (
+                            <div className="flex h-8 items-center text-xs text-bark-lt">Loading…</div>
+                          ) : (
+                            <div className="flex h-8 bg-emerald-50/80 rounded-lg overflow-hidden border border-emerald-200/60">
+                              {hourOptions.map((hr) => {
+                                const dry = getDryIndexForHour(hr)
+                                const pct = dry != null ? `${dry}%` : '–'
+                                const low = dry != null && dry < 50
+                                return (
+                                  <div
+                                    key={hr}
+                                    className="flex-1 border-r border-emerald-200/60 last:border-r-0 flex items-center justify-center min-w-0"
+                                    title={`${formatHour(hr)} – ${formatHour(hr + 1)}: ${pct} dry`}
+                                  >
+                                    <span className={`text-[10px] font-medium truncate ${low ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                      {pct}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
@@ -569,6 +605,9 @@ export function CalendarBookPage() {
                     <span>Total</span>
                     <span>${total}</span>
                   </div>
+                  <p className="mt-1 text-[11px] text-bark-lt">
+                    Estimated total including lights: ${total} (court ${courtFee}{lightsFee > 0 ? ` + lights ${lightsFee}` : ''})
+                  </p>
                 </div>
 
                 <button
