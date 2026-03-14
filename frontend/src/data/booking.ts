@@ -3,7 +3,13 @@
  * Slots respect existing bookings (from BookingContext) so all flows behave consistently.
  */
 
-import type { BookingRecord } from '../context/BookingContext'
+export type BookingRecord = {
+  venueId: string
+  date: string
+  courtId: string
+  start: string
+  end: string
+}
 
 export const MAX_BOOKING_HOURS = 2
 
@@ -98,8 +104,8 @@ export function getTimeSlotsForDate(
 
 /** For multi-hour: check that every 1h segment in [start, end) is available for the same court */
 export function isRangeAvailable(
-  venueId: string,
-  date: Date,
+  _venueId: string,
+  _date: Date,
   courtId: string,
   start: string,
   endHours: number,
@@ -108,7 +114,6 @@ export function isRangeAvailable(
   const [startH] = start.split(':').map(Number)
   for (let h = 0; h < endHours; h++) {
     const hStart = `${(startH + h).toString().padStart(2, '0')}:00`
-    const hEnd = `${(startH + h + 1).toString().padStart(2, '0')}:00`
     const slot = allSlots.find(
       (s) => s.courtId === courtId && s.start === hStart
     )
@@ -119,7 +124,7 @@ export function isRangeAvailable(
 
 /** Compute end time string for start + durationHours (e.g. "07:00" + 2 => "09:00") */
 export function addHoursToTime(start: string, durationHours: number): string {
-  const [h, m] = start.split(':').map(Number)
+  const [h] = start.split(':').map(Number)
   const newH = h + durationHours
   return `${newH.toString().padStart(2, '0')}:00`
 }

@@ -21,16 +21,6 @@ export function Nav() {
           Discover
         </NavLink>
         <NavLink
-          to="/map"
-          className={({ isActive }) =>
-            `px-3.5 py-1.5 rounded-[20px] text-xs font-medium transition-colors ${
-              isActive ? 'bg-g50 text-g800' : 'text-bark-lt hover:bg-g50 hover:text-g800'
-            }`
-          }
-        >
-          Map
-        </NavLink>
-        <NavLink
           to="/book"
           className={({ isActive }) =>
             `px-3.5 py-1.5 rounded-[20px] text-xs font-medium transition-colors ${
@@ -49,6 +39,16 @@ export function Nav() {
           }
         >
           Schedule
+        </NavLink>
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            `px-3.5 py-1.5 rounded-[20px] text-xs font-medium transition-colors ${
+              isActive ? 'bg-g50 text-g800' : 'text-bark-lt hover:bg-g50 hover:text-g800'
+            }`
+          }
+        >
+          Profile
         </NavLink>
       </div>
       <button

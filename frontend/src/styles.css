@@ -21,7 +21,6 @@
   --warning: #E8A830;
   --danger: #E05A5A;
 
-  /* 他的 CSS 变量别名 → 你的色系（兼容他的组件） */
   --sand: #FAF9F6;
   --bark: #1A1A1A;
   --bark-lt: #3D3D3D;
@@ -37,6 +36,177 @@ body {
 .leaflet-container {
   font-family: inherit;
   background: var(--cream);
+}
+
+/* ═══════════════════════════════════════════════
+   MAP PIN — base + hover glow + selected
+   ═══════════════════════════════════════════════ */
+.venue-pin {
+  width: 44px;
+  height: 44px;
+  background: #FFFFFF;
+  border: 2.5px solid #C8E632;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+/* Hover glow — green border + outer glow */
+.venue-pin-marker:hover .venue-pin {
+  border-color: #2DB87A;
+  box-shadow:
+    0 0 0 3px rgba(45, 184, 122, 0.3),
+    0 0 20px 6px rgba(45, 184, 122, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: scale(1.08);
+}
+
+/* Selected state */
+.venue-pin--selected {
+  background: #2DB87A;
+  border-color: #2DB87A;
+  box-shadow:
+    0 0 0 3px rgba(45, 184, 122, 0.35),
+    0 3px 12px rgba(45, 184, 122, 0.4);
+}
+.venue-pin-marker:hover .venue-pin--selected {
+  box-shadow:
+    0 0 0 4px rgba(45, 184, 122, 0.4),
+    0 0 24px 8px rgba(45, 184, 122, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Court count badge */
+.venue-pin-badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  background: #2DB87A;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-family: Outfit, sans-serif;
+  line-height: 1.4;
+}
+.venue-pin-badge--selected {
+  background: #C8E632;
+  color: #1A1A1A;
+}
+
+/* ═══════════════════════════════════════════════
+   MAP POPUP — card-like, green glow border
+   ═══════════════════════════════════════════════ */
+.venue-map-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 16px;
+  border: 2px solid #2DB87A;
+  background: #FAF9F6;
+  box-shadow:
+    0 0 0 3px rgba(45, 184, 122, 0.25),
+    0 0 16px 4px rgba(45, 184, 122, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.venue-map-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 0;
+}
+.venue-map-popup .leaflet-popup-tip-container {
+  display: none;
+}
+/* Close button styling */
+.venue-map-popup .leaflet-popup-close-button {
+  color: #8A8A8A;
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  top: 6px;
+  right: 6px;
+}
+.venue-map-popup .leaflet-popup-close-button:hover {
+  color: #1A1A1A;
+}
+
+/* Popup inner content */
+.venue-popup-inner {
+  min-width: 200px;
+  font-family: Outfit, sans-serif;
+  padding: 16px 18px 14px;
+  background: #FAF9F6;
+}
+
+.venue-popup-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1A1A1A;
+  margin-bottom: 6px;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.venue-popup-price {
+  font-weight: 700;
+  font-size: 20px;
+  color: #2DB87A;
+  margin-bottom: 12px;
+}
+.venue-popup-price-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8A8A8A;
+  margin-left: 1px;
+}
+
+.venue-popup-quickbook {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: center;
+  background: #1A7A4F;
+  color: #fff !important;
+  border: none;
+  border-radius: 12px;
+  font-family: Outfit, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.venue-popup-quickbook:hover {
+  background: #145F3C;
+  transform: translateY(-1px);
+}
+
+/* Inline buttons row for CourtMap / Map page */
+.venue-popup-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.venue-popup-actions .court-popup-detail-btn,
+.venue-popup-quickbook--inline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* Detail button in popup */
+.court-popup-detail-btn:hover {
+  border-color: #2DB87A;
+  color: #1A7A4F;
+  background: rgba(45, 184, 122, 0.05);
 }
 
 /* Toast overrides */

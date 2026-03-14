@@ -3,12 +3,21 @@ import type { Venue } from '../data/venues'
 import type { FilterState } from '../components/FilterBar'
 
 const defaultFilters: FilterState = {
-  surface: 'all',
   location: '',
-  lights: false,
+  indoor: false,
+  outdoor: false,
+  hard: false,
+  clay: false,
+  synthetic_clay: false,
+  grass: false,
+  synthetic_grass: false,
   parking: false,
-  minCourts: 0,
+  lights: false,
+  toilet: false,
+  fourCourts: false,
 }
+
+const SURFACE_KEYS = ['hard', 'clay', 'synthetic_clay', 'grass', 'synthetic_grass'] as const
 
 export function useFilteredVenues(venueList: Venue[]) {
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
@@ -24,13 +33,14 @@ export function useFilteredVenues(venueList: Venue[]) {
         )
           return false
       }
-      if (filters.surface !== 'all') {
-        if (filters.surface === 'hard' && v.surface_api !== 'hard') return false
-        if (filters.surface === 'synthetic' && v.surface_api !== 'synthetic_grass') return false
-      }
+      if (filters.indoor && !filters.outdoor && !v.indoor) return false
+      if (filters.outdoor && !filters.indoor && !v.outdoor) return false
+      const selectedSurfaces = SURFACE_KEYS.filter((k) => filters[k])
+      if (selectedSurfaces.length > 0 && v.surface_api != null && !selectedSurfaces.includes(v.surface_api)) return false
       if (filters.lights && !v.nightLighting) return false
       if (filters.parking && !v.amenities?.includes('Parking')) return false
-      if (filters.minCourts >= 4 && (v.courts ?? 0) < 4) return false
+      if (filters.toilet && !v.amenities?.includes('Toilet')) return false
+      if (filters.fourCourts && (v.courts ?? 0) < 4) return false
       return true
     })
   }, [venueList, filters])

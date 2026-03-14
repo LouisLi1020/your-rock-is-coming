@@ -1,11 +1,20 @@
 import { Search } from 'lucide-react'
 
 export interface FilterState {
-  surface: string       // 'all' | 'hard' | 'synthetic'
   location: string
-  lights: boolean
-  parking: boolean
-  minCourts: number    // 0 = any, 4 = 4+ courts
+  indoor?: boolean
+  outdoor?: boolean
+  hard?: boolean
+  clay?: boolean
+  synthetic_clay?: boolean
+  grass?: boolean
+  synthetic_grass?: boolean
+  parking?: boolean
+  lights?: boolean
+  toilet?: boolean
+  fourCourts?: boolean
+  surface?: string
+  minCourts?: number
 }
 
 interface FilterBarProps {
@@ -49,7 +58,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
             <span className="text-sm">Parking</span>
           </label>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={filters.minCourts >= 4} onChange={(e) => set({ minCourts: e.target.checked ? 4 : 0 })} />
+            <input type="checkbox" checked={(filters.minCourts ?? 0) >= 4} onChange={(e) => set({ minCourts: e.target.checked ? 4 : 0 })} />
             <span className="text-sm">4+ courts</span>
           </label>
           <button

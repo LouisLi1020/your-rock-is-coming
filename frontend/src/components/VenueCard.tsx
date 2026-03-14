@@ -5,55 +5,92 @@ import type { Venue } from '../data/venues'
 interface VenueCardProps {
   venue: Venue
   selected?: boolean
+  onSelect?: (id: string) => void
   onQuickBook?: (venue: Venue) => void
 }
 
-const surfaceBadgeClass: Record<string, string> = {
-  'Hard Court': 'bg-[#E6F1FB] text-[#0C447C]',
-  Clay: 'bg-[#FAECE7] text-[#712B13]',
-  Grass: 'bg-[#EAF3DE] text-[#27500A]',
-  Synthetic: 'bg-[#EEEDFE] text-[#26215C]',
-  'Artificial Grass': 'bg-[#E1F5EE] text-[#0F6E56]',
+/* Label map — consistent with FilterChips */
+const SURFACE_BADGE: Record<string, { label: string; className: string }> = {
+  'Hard Court': { label: 'Hard Court', className: 'bg-[#E6F1FB] text-[#0C447C]' },
+  Clay: { label: 'Clay', className: 'bg-[#FAECE7] text-[#712B13]' },
+  'Synthetic Clay': { label: 'Synthetic Clay', className: 'bg-[#FAECE7] text-[#712B13]' },
+  Grass: { label: 'Grass', className: 'bg-[#EAF3DE] text-[#27500A]' },
+  Synthetic: { label: 'Synthetic Grass', className: 'bg-[#EEEDFE] text-[#26215C]' },
+  'Artificial Grass': { label: 'Synthetic Grass', className: 'bg-[#E1F5EE] text-[#0F6E56]' },
+  'Synthetic Grass': { label: 'Synthetic Grass', className: 'bg-[#E1F5EE] text-[#0F6E56]' },
 }
 
-export function VenueCard({ venue, selected, onQuickBook }: VenueCardProps) {
-  const surfaceClass = venue.surfaceTypes[0] ? surfaceBadgeClass[venue.surfaceTypes[0]] || 'bg-g50 text-g800' : 'bg-g50 text-g800'
+const DEFAULT_BADGE = { label: 'Court', className: 'bg-g50 text-g800' }
 
+export function VenueCard({ venue, selected, onSelect, onQuickBook }: VenueCardProps) {
   return (
     <div
       id={`venue-card-${venue.id}`}
-      className={`bg-white border rounded-[16px] overflow-hidden transition-colors ${
-        selected ? 'border-g200 ring-2 ring-g200/30' : 'border-[var(--border)] hover:border-g200'
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('a, button') == null) onSelect?.(venue.id)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          if ((e.target as HTMLElement).closest('a, button') == null) onSelect?.(venue.id)
+        }
+      }}
+      className={`rounded-[16px] overflow-hidden transition-all duration-200 border-2 cursor-pointer ${
+        selected
+          ? 'bg-[#F7FDF9] border-[#2DB87A] shadow-sm ring-2 ring-[#2DB87A18]'
+          : 'bg-white border-[var(--border)] hover:border-g200'
       }`}
     >
-      <div className="h-28 relative flex items-end p-2.5 bg-g50">
-        <div className="absolute inset-0 opacity-10">
-          <svg viewBox="0 0 260 110" className="w-full h-full text-g600">
-            <rect x="20" y="10" width="220" height="90" fill="none" stroke="currentColor" strokeWidth="2" />
-            <line x1="130" y1="10" x2="130" y2="100" stroke="currentColor" strokeWidth="1" />
-            <line x1="20" y1="55" x2="240" y2="55" stroke="currentColor" strokeWidth="1" />
-            <ellipse cx="130" cy="55" rx="22" ry="22" fill="none" stroke="currentColor" strokeWidth="1" />
-          </svg>
-        </div>
-        <div className="relative z-10 flex flex-wrap gap-1">
-          {venue.surfaceTypes.slice(0, 2).map((s, i) => (
-            <span
-              key={i}
-              className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                surfaceBadgeClass[s] || surfaceClass
-              }`}
-            >
-              {s.replace(' Court', '').replace(' Artificial Grass', 'Synth')}
-            </span>
-          ))}
+      <div className="h-28 relative overflow-hidden">
+        <img
+          src={venue.image}
+          alt={venue.name}
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+        <div className="absolute left-2.5 bottom-2.5 right-2.5 flex flex-wrap gap-1">
+          {venue.surfaceTypes.slice(0, 2).map((s, i) => {
+            const badge = SURFACE_BADGE[s] || DEFAULT_BADGE
+            return (
+              <span
+                key={i}
+                className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${badge.className}`}
+              >
+                {badge.label}
+              </span>
+            )
+          })}
           {venue.nightLighting && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-a50 text-[#633806] uppercase">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#FFF8E1] text-[#633806] uppercase tracking-wider">
               Lights
             </span>
           )}
           {venue.outdoor && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-t50 text-t600 uppercase">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#E1F5EE] text-[#0F6E56] uppercase tracking-wider">
               Outdoor
+            </span>
+          )}
+          {!venue.outdoor && venue.indoor && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#EEEDFE] text-[#26215C] uppercase tracking-wider">
+              Indoor
+            </span>
+          )}
+          {venue.amenities?.includes('Parking') && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#E8F4FD] text-[#2878A8] uppercase tracking-wider">
+              Parking
+            </span>
+          )}
+          {venue.amenities?.includes('Toilet') && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-[#F3F0FF] text-[#5B47A8] uppercase tracking-wider">
+              Toilet
+            </span>
+          )}
+          {(venue.courts ?? 0) > 0 && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-[#16A34A] text-white shadow-sm">
+              {venue.courts} Courts
             </span>
           )}
         </div>
@@ -81,7 +118,7 @@ export function VenueCard({ venue, selected, onQuickBook }: VenueCardProps) {
             <span className="font-sans text-[10px] font-normal text-bark-lt">/hr</span>
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <Link
             to={`/venue/${venue.id}`}
             className="flex-1 py-2 text-center text-xs font-medium rounded-xl border border-[var(--border)] text-bark hover:bg-g50 transition-colors"
@@ -90,7 +127,10 @@ export function VenueCard({ venue, selected, onQuickBook }: VenueCardProps) {
           </Link>
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); onQuickBook?.(venue) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onQuickBook?.(venue)
+            }}
             className="flex-1 py-2 text-center text-xs font-semibold rounded-xl bg-g600 text-white hover:bg-g800 transition-colors"
           >
             Quick book

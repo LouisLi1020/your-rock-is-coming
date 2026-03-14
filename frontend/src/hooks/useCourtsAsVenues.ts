@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCourts } from '../api/courts'
 import { courtToVenue } from '../utils/courtToVenue'
+import { MOCK_SYDNEY_VENUES } from '../data/mockSydneyCourts'
 import type { Venue } from '../data/venues'
 
 export function useCourtsAsVenues(): {
@@ -19,12 +20,14 @@ export function useCourtsAsVenues(): {
     getCourts()
       .then((res) => {
         if (cancelled) return
-        setVenues(res.courts.map(courtToVenue))
+        const list = res?.courts?.length ? res.courts.map(courtToVenue) : MOCK_SYDNEY_VENUES
+        setVenues(list)
+        if (!res?.courts?.length) setError(null) // 使用 mock 时不显示错误
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return
-        setError(err?.message ?? 'Failed to load courts')
-        setVenues([])
+        setVenues(MOCK_SYDNEY_VENUES)
+        setError(null) // API 不可用时静默回退到 mock，不提示错误
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

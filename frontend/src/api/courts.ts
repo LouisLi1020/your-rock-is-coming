@@ -7,10 +7,11 @@ export type Court = {
   address: string;
   suburb: string;
   courts_count: number;
-  surface: 'hard' | 'synthetic_grass';
+  surface: 'hard' | 'synthetic_grass' | 'clay' | 'synthetic_clay' | 'grass';
   outdoor: number;
   lights: number;
   parking: number;
+  toilet?: number;
   open_hour: number;
   close_hour: number;
   price_per_hr: number;

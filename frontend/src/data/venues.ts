@@ -30,8 +30,8 @@ export type Venue = {
   lights_price?: number
   open_hour?: number
   close_hour?: number
-  /** Surface from API: hard | synthetic_grass */
-  surface_api?: 'hard' | 'synthetic_grass'
+  /** Surface from API */
+  surface_api?: 'hard' | 'synthetic_grass' | 'clay' | 'synthetic_clay' | 'grass'
 }
 
 const DEFAULT_IMAGE =

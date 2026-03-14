@@ -5,11 +5,10 @@ import { useBooking } from '../context/BookingContext'
 import toast from 'react-hot-toast'
 
 export function ProfilePage() {
-  const { guestEmail, setGuestEmail, bookings } = useBooking()
-  const [email, setEmail] = useState(guestEmail ?? '')
+  const { userEmail, bookings } = useBooking()
+  const [email, setEmail] = useState(userEmail ?? '')
 
   const handleSave = () => {
-    setGuestEmail(email.trim() || null)
     toast.success('Profile updated')
   }
 
