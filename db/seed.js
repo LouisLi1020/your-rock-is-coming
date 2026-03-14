@@ -47,7 +47,7 @@ function init() {
       booker_email  TEXT NOT NULL,
       players       INTEGER NOT NULL DEFAULT 2,
       total_price   REAL NOT NULL DEFAULT 0,
-      status        TEXT NOT NULL DEFAULT 'confirmed' CHECK(status IN ('confirmed', 'cancelled')),
+      status        TEXT NOT NULL DEFAULT 'confirmed' CHECK(status IN ('confirmed', 'cancelled', 'refunded')),
       created_at    TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (court_id) REFERENCES courts(id)
     );
@@ -166,6 +166,32 @@ function init() {
       }
     }
     console.log(`✅ Seeded ${bookingCount} sample bookings`);
+
+    // ═══ SEED DEMO USER BOOKINGS ═══
+    const demoEmail = 'demo@courtfinder.com';
+    const demoName = 'Alex Demo';
+    const demoPhone = '0400000000';
+
+    const dateOffset = (days) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split('T')[0];
+    };
+
+    const demoBookings = [
+      { court_id: 9, court_number: 1, date: dateOffset(-1), start_hour: 10, end_hour: 12, players: 2, total_price: 44, status: 'confirmed' },
+      { court_id: 6, court_number: 2, date: dateOffset(0), start_hour: 16, end_hour: 18, players: 4, total_price: 44, status: 'confirmed' },
+      { court_id: 1, court_number: 1, date: dateOffset(1), start_hour: 15, end_hour: 17, players: 2, total_price: 44, status: 'confirmed' },
+      { court_id: 6, court_number: 3, date: dateOffset(2), start_hour: 18, end_hour: 20, players: 3, total_price: 60, status: 'confirmed' },
+      { court_id: 9, court_number: 2, date: dateOffset(3), start_hour: 9, end_hour: 11, players: 2, total_price: 44, status: 'confirmed' },
+      { court_id: 3, court_number: 1, date: dateOffset(-3), start_hour: 14, end_hour: 15, players: 2, total_price: 22, status: 'cancelled' },
+    ];
+
+    for (const demo of demoBookings) {
+      bookingInsert.run({ ...demo, booker_name: demoName, booker_phone: demoPhone, booker_email: demoEmail });
+    }
+    console.log(`✅ Seeded ${demoBookings.length} demo user bookings (${demoEmail})`);
+
   } else {
     console.log(`ℹ️  Database already has ${count} courts, skipping seed`);
   }
