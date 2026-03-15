@@ -425,10 +425,18 @@ export function BookingsPage() {
           ) : (
             <>
               {selectedDate && (
-                <p className="text-[12px] font-medium text-bark-lt mb-3">
-                  {format(new Date(selectedDate + 'T12:00:00'), 'EEEE, d MMM yyyy')} — {filteredBySearch.length}{' '}
-                  booking(s)
-                </p>
+                <>
+                  <p className="text-[12px] font-medium text-bark-lt mb-2">
+                    {format(new Date(selectedDate + 'T12:00:00'), 'EEEE, d MMM yyyy')} — {filteredBySearch.length}{' '}
+                    booking(s)
+                  </p>
+                  <Link
+                    to={`/book?date=${selectedDate}`}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-g600 text-white text-sm font-medium hover:bg-g800 transition-colors mb-4"
+                  >
+                    Quick book for this day →
+                  </Link>
+                </>
               )}
               {upcoming.length > 0 && (
                 <>

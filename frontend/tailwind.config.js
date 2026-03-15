@@ -1,18 +1,14 @@
-// tailwind.config.js — 替换 frontend/tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        // 你的字体
         sans: ['Outfit', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
         display: ['Fraunces', 'Lora', 'Georgia', 'serif'],
-        // 保留他的别名以兼容现有组件
         lora: ['Fraunces', 'Lora', 'serif'],
       },
       colors: {
-        // ═══ 你的配色（主色系）═══
         cream:      { DEFAULT: '#FAF9F6', dark: '#F2F0EB' },
         ink:        { DEFAULT: '#1A1A1A', soft: '#3D3D3D', muted: '#8A8A8A', faint: '#B5B5B5' },
         accent:     { DEFAULT: '#C8E632', hover: '#B8D42A', dim: 'rgba(200,230,50,0.15)', text: '#5A6B00' },
@@ -20,7 +16,6 @@ export default {
         warning:    { DEFAULT: '#E8A830', dim: 'rgba(232,168,48,0.1)' },
         danger:     { DEFAULT: '#E05A5A' },
 
-        // ═══ 他的颜色别名（兼容现有组件，映射到你的色系）═══
         sand:       '#FAF9F6',      // → cream
         bark:       '#1A1A1A',      // → ink
         'bark-lt':  '#3D3D3D',      // → ink-soft
