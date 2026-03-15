@@ -389,10 +389,24 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 });
 
-// ═══ START ═══
+// ═══ START — check DB has courts so frontend shows availability ═══
+function checkDbReady() {
+  try {
+    const courts = db.getAllCourts();
+    if (!courts || courts.length === 0) {
+      console.warn('\n⚠️  No courts in database — Book / Quick book will show "no availability".');
+      console.warn('   Run once from repo root:  npm run seed\n');
+    }
+  } catch (e) {
+    console.warn('\n⚠️  Database not ready (e.g. tables missing). Book / Quick book will show "no availability".');
+    console.warn('   Run once from repo root:  npm run seed\n');
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`\n🎾 CourtFinder running at http://localhost:${PORT}\n`);
   console.log(`   API:     http://localhost:${PORT}/api/courts`);
   console.log(`   Weather: ${WEATHER_API_KEY ? '✅ API key set' : '⚠️  No OPENWEATHER_API_KEY — weather will use fallback data'}`);
+  checkDbReady();
   console.log('');
 });

@@ -6,6 +6,18 @@ Find and book tennis courts across Sydney. One place to discover venues, check w
 
 ---
 
+## Screenshots
+
+**Discover** — Search venues, filters, 7-day weather, and map with court markers.
+
+![Discover page](assets/discover.png)
+
+**Book** — Pick venue, date, see rain chance & dryness index, then select time slots.
+
+![Book page](assets/book.png)
+
+---
+
 ## Tech stack
 
 | Layer   | Stack |
