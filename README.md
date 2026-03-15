@@ -1,20 +1,45 @@
-# your·rock·is·coming — Sydney Tennis Platform
+# your·rock·is·coming🎾
 
-Find and book tennis courts across Sydney. One place to discover venues, check weather, and book — rain or shine.
+**One platform for Sydney tennis** — discover courts, check the weather, and book in seconds.
 
-**UniHack 2026**
+Built at **UniHack March 13-15, 2026** in 48 hours.
 
 ---
 
-## Screenshots
+## Why We Built This
 
-**Discover** — Search venues, filters, 7-day weather, and map with court markers.
+Sydney tennis players face a **fragmented ecosystem**:
 
-![Discover page](assets/discover.png)
+- **Information silos** — Courts are scattered across council sites, club pages, and school portals, each with different booking tools.
+- **No comparison** — Hard to compare surface types (grass, hard, clay), night lights, or pricing in one place.
+- **Weather friction** — Rain makes outdoor courts unusable, yet refunds and reschedules are often clunky.
 
-**Book** — Pick venue, date, see rain chance & dryness index, then select time slots.
+**your·rock·is·coming** centralizes venue discovery and introduces weather-aware booking flows, so players can plan around the rain and book with confidence.
 
-![Book page](assets/book.png)
+> *The name comes from the idea that with persistence — like a small stone rolling upward — every player can be a champion in their own way.*
+
+---
+
+## Demo
+ 
+### Main Page
+Discover everything tennis in Sydney — search and filter courts, explore the map, and get a snapshot of available venues at a glance.
+ 
+![Main page](https://github.com/LouisLi1020/your-rock-is-coming/blob/main/assets/discover.png)
+ 
+### Booking Page
+A full booking flow in one place — select your court, pick a date and time slot, and see **rain chance** and **dryness index** before you confirm, so you never get caught off guard.
+ 
+![Booking page](https://github.com/LouisLi1020/your-rock-is-coming/blob/main/assets/book.png)
+ 
+---
+
+## Features
+
+- 🗺️ **Map-Based Discovery** — Explore Sydney venues on an interactive map; click any marker for details and quick booking
+- 🔍 **Smart Filtering** — Filter by surface (grass / hard / clay / synthetic), night lights, parking, and suburb
+- 🌦️ **Weather-Aware Booking** — 7-day forecast, rain chance, and dryness index built into the booking calendar so you never get caught off guard
+- 📅 **Full Booking Flow** — Pick venue → pick date → pick time slot → confirm; view and cancel bookings anytime
 
 ---
 
@@ -81,17 +106,6 @@ Open **http://localhost:3000**. The app uses **mock venue data** and **localStor
 
 ---
 
-## Features
-
-- **Discover** — Search, filter chips (surface, indoor/outdoor, facilities), venue cards, stats
-- **Map** — Sydney map with markers; click for venue popup and “View details”
-- **Venue detail** — Full page per venue; “Quick book” opens modal (date, time, 7-day weather)
-- **Book** (`/book`) — Pick venue, date (calendar), time slot; 7-day weather; submit booking
-- **Schedule** (`/bookings`) — List and cancel bookings (API or localStorage when backend is off)
-- **Profile** (`/profile`) — Demo user / contact info for confirmations
-- **Weather** — 7-day forecast in hero, quick book, and calendar book; rain warning when relevant
-
----
 
 ## Backend API
 
@@ -100,7 +114,7 @@ Open **http://localhost:3000**. The app uses **mock venue data** and **localStor
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/courts` | List courts (optional: `q`, `surface`, `lights`, `parking`, `toilet`, `min_courts`, `suburb`) |
-| GET | `/api/courts/:id` | Single court |
+| GET | `/api/courts/:id` | Single court detail |
 | GET | `/api/courts/:id/availability?date=YYYY-MM-DD` | Availability grid |
 
 ### Bookings
@@ -108,15 +122,15 @@ Open **http://localhost:3000**. The app uses **mock venue data** and **localStor
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/bookings` | Create booking |
-| GET | `/api/bookings?email=xxx` | List by email |
-| DELETE | `/api/bookings/:id` | Cancel booking |
+| GET | `/api/bookings?email=xxx` | List bookings for an email address |
+| DELETE | `/api/bookings/:id` | Cancel a booking |
 
 ### Weather
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/weather/:courtId?date=YYYY-MM-DD` | Weather for one court |
-| GET | `/api/weather/bulk?date=YYYY-MM-DD` | Weather for all courts |
+| GET | `/api/weather/:courtId?date=YYYY-MM-DD` | 7-day forecast for a single court |
+| GET | `/api/weather/bulk?date=YYYY-MM-DD` | 7-day forecast for all courts |
 
 Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns fallback data.
 
@@ -134,7 +148,29 @@ Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns 
 | `npm run migrate` | Run DB migrations |
 
 ---
+ 
+## Roadmap
+ 
+### ✅ Built at UniHack 2026
+- Court discovery with search, filters, and map
+- Weather-aware booking flow (7-day forecast + rain warnings)
+- Calendar-based time slot selection
+- Booking management (create + cancel)
+- Dual-mode: full stack or frontend-only demo
+ 
+### 🔲 Future
+- Coach matching and session booking
+- Payment integration
+- User accounts and booking history
+- Push notifications for weather changes
+- Social features — play with friends, find hitting partners
 
-## Vision
+---
 
-One platform for Sydney tennis: venues, booking, opening hours, weather-aware flows. See repo history and any docs in `docs/` for roadmap and design notes.
+## Acknowledgements
+ 
+- [Open-Meteo](https://open-meteo.com/) — free weather API, no key required
+- [Leaflet](https://leafletjs.com/) / [react-leaflet](https://react-leaflet.js.org/) — interactive maps
+- [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — fast synchronous SQLite for Node
+
