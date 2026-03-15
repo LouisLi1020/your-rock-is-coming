@@ -80,7 +80,7 @@ npm run dev
 
 Open **http://localhost:3000**. The app uses **mock venue data** and **localStorage** for bookings when the backend is not running (no need to start the server).
 
-### SQLite / Node (staying with SQLite)
+### SQLite / Node (troubleshooting)
 
 We keep **SQLite (better-sqlite3)** for the backend. If you see **"could not find the binding file"** or node-gyp errors (common on Windows), use **Node 20+** and run:
 
@@ -116,10 +116,6 @@ from the repo root (and run `rm -rf node_modules && npm install` inside `fronten
 
 ---
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 9050cc0 (fix: z-index layering (nav above filters, sidebar on top, View full map above map))
 ## Backend API
 
 ### Courts
@@ -161,34 +157,7 @@ Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns 
 | `npm run migrate` | Run DB migrations |
 
 ---
- 
-## Roadmap
- 
-### ✅ Built at UniHack 2026
-- Court discovery with search, filters, and map
-- Weather-aware booking flow (7-day forecast + rain warnings)
-- Calendar-based time slot selection
-- Booking management (create + cancel)
-- Dual-mode: full stack or frontend-only demo
- 
-### 🔲 Future
-- Coach matching and session booking
-- Payment integration
-- User accounts and booking history
-- Push notifications for weather changes
-- Social features — play with friends, find hitting partners
 
-<<<<<<< HEAD
----
-
-## Acknowledgements
- 
-- [Open-Meteo](https://open-meteo.com/) — free weather API, no key required
-- [Leaflet](https://leafletjs.com/) / [react-leaflet](https://react-leaflet.js.org/) — interactive maps
-- [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — fast synchronous SQLite for Node
-
-=======
 ## Roadmap
 
 ### ✅ Built at UniHack 2026
@@ -213,4 +182,3 @@ Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns 
 - [Leaflet](https://leafletjs.com/) / [react-leaflet](https://react-leaflet.js.org/) — interactive maps
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — fast synchronous SQLite for Node
->>>>>>> 9050cc0 (fix: z-index layering (nav above filters, sidebar on top, View full map above map))
