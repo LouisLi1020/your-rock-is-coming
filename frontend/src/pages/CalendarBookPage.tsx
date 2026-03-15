@@ -26,10 +26,17 @@ function formatDateDisplay(d: Date): string {
 export function CalendarBookPage() {
   const [searchParams] = useSearchParams()
   const courtFromUrl = searchParams.get('court')
+  const dateFromUrl = searchParams.get('date')
   const { venues } = useCourtsAsVenues()
 
   const [venueId, setVenueId] = useState<string>('')
-  const [calDate, setCalDate] = useState(() => new Date())
+  const [calDate, setCalDate] = useState(() => {
+    if (dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl)) {
+      const parsed = new Date(dateFromUrl + 'T12:00:00')
+      if (!Number.isNaN(parsed.getTime())) return parsed
+    }
+    return new Date()
+  })
   const [calAvail, setCalAvail] = useState<AvailabilityGrid | null>(null)
   const [calLoading, setCalLoading] = useState(false)
   const [weatherLocation, setWeatherLocation] = useState<string>('')
@@ -60,6 +67,13 @@ export function CalendarBookPage() {
   useEffect(() => {
     if (courtFromUrl && venues.some((v) => v.id === courtFromUrl)) setVenueId(courtFromUrl)
   }, [courtFromUrl, venues])
+
+  useEffect(() => {
+    if (dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl)) {
+      const parsed = new Date(dateFromUrl + 'T12:00:00')
+      if (!Number.isNaN(parsed.getTime())) setCalDate(parsed)
+    }
+  }, [dateFromUrl])
 
   // Fetch availability (also re-fetches when reloadCounter changes)
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { Calendar } from 'lucide-react'
 import { useBooking } from '../context/BookingContext'
 
 export function Nav() {
@@ -55,9 +56,9 @@ export function Nav() {
         type="button"
         onClick={() => setBookingsPanelOpen(true)}
         title="My schedule"
-        className="w-10 h-10 rounded-full bg-white border-2 border-[var(--accent)] flex items-center justify-center text-lg shadow-sm hover:scale-[1.05] hover:shadow-md hover:border-g600 transition-all"
+        className="w-10 h-10 rounded-full bg-white border-2 border-[var(--accent)] flex items-center justify-center text-g600 shadow-sm hover:scale-[1.05] hover:shadow-md hover:border-g600 transition-all"
       >
-        👤
+        <Calendar className="w-5 h-5" strokeWidth={2} aria-hidden />
       </button>
     </nav>
   )

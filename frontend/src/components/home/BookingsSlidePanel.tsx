@@ -76,8 +76,21 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
   const calendarPadEnd = (7 - ((calendarPadStart + calendarDays.length) % 7)) % 7
 
   const filteredByDate = selectedDate ? enriched.filter((b) => b.date === selectedDate) : null
-  const upcoming = (filteredByDate ?? enriched).filter((b) => b.date >= todayStr && b.status === 'confirmed')
-  const past = (filteredByDate ?? enriched).filter((b) => b.date < todayStr || b.status !== 'confirmed')
+  const baseList = filteredByDate ?? enriched
+  const upcoming = useMemo(() => {
+    const list = baseList.filter((b) => b.date >= todayStr && b.status === 'confirmed')
+    return [...list].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      return (a.start_hour ?? 0) - (b.start_hour ?? 0)
+    })
+  }, [baseList, todayStr])
+  const past = useMemo(() => {
+    const list = baseList.filter((b) => b.date < todayStr || b.status !== 'confirmed')
+    return [...list].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      return (b.start_hour ?? 0) - (a.start_hour ?? 0)
+    })
+  }, [baseList, todayStr])
 
   async function handleCancel(id: number, totalPrice: number, hoursUntil: number | null) {
     // 24h内不能退

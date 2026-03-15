@@ -194,8 +194,20 @@ export function BookingsPage() {
         (b.court_address && b.court_address.toLowerCase().includes(q))
     )
   }, [filteredByDate, searchQuery])
-  const upcoming = filteredBySearch.filter((b) => b.date >= todayStr && b.status === 'confirmed')
-  const past = filteredBySearch.filter((b) => b.date < todayStr || b.status !== 'confirmed')
+  const upcoming = useMemo(() => {
+    const list = filteredBySearch.filter((b) => b.date >= todayStr && b.status === 'confirmed')
+    return [...list].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      return (a.start_hour ?? 0) - (b.start_hour ?? 0)
+    })
+  }, [filteredBySearch, todayStr])
+  const past = useMemo(() => {
+    const list = filteredBySearch.filter((b) => b.date < todayStr || b.status !== 'confirmed')
+    return [...list].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date)
+      return (b.start_hour ?? 0) - (a.start_hour ?? 0)
+    })
+  }, [filteredBySearch, todayStr])
 
   // Credit total from all refunded/cancelled bookings
   const creditTotal = bookings.filter((b) => b.status === 'refunded' || b.status === 'cancelled').reduce((s, b) => s + b.total_price, 0)
@@ -401,6 +413,14 @@ export function BookingsPage() {
                   ? `No bookings on ${format(new Date(selectedDate + 'T12:00:00'), 'EEE, d MMM')}.`
                   : 'No results for this search.'}
               </p>
+              {selectedDate && (
+                <Link
+                  to={`/book?date=${selectedDate}`}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-g600 text-white text-sm font-medium hover:bg-g800 transition-colors"
+                >
+                  Quick book for this day →
+                </Link>
+              )}
             </div>
           ) : (
             <>
