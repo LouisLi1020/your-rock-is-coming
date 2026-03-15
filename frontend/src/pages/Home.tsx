@@ -157,7 +157,7 @@ export function Home() {
             </div>
           </div>
           <div className="relative flex-1 min-h-[320px] lg:min-h-[480px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--cream)] shadow-sm">
-            <div className="absolute top-3 right-3 z-[1100]">
+            <div className="absolute top-3 right-3 z-[500]">
               <a
                 href="/map"
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 border border-[var(--border)] text-[11px] font-medium text-g600 shadow-sm hover:bg-white hover:border-g200 transition-colors"

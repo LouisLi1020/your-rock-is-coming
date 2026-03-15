@@ -125,12 +125,12 @@ export function BookingsSlidePanel({ open, onClose }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/30 z-[1000] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/30 z-[2000] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
-      {/* Panel — 360px wide */}
+      {/* Panel — 360px wide; above nav, filters, and page content (e.g. venue card buttons) */}
       <div
-        className={`fixed top-0 right-0 w-[360px] h-screen bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.1)] z-[1001] flex flex-col transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 w-[360px] h-screen bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.1)] z-[2001] flex flex-col transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="px-5 pt-4 pb-3 border-b border-[#E8E6E1] flex items-center justify-between">

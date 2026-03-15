@@ -5,7 +5,7 @@ import { useBooking } from '../context/BookingContext'
 export function Nav() {
   const { setBookingsPanelOpen } = useBooking()
   return (
-    <nav className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 sm:px-6 bg-white border-b border-[var(--border)]">
+    <nav className="sticky top-0 z-[900] flex items-center justify-between h-14 px-4 sm:px-6 bg-white border-b border-[var(--border)]">
       <Link to="/" className="font-lora text-base font-semibold text-g600 tracking-tight">
         your<span className="text-g400">·</span>rock<span className="text-g400">·</span>is<span className="text-g400">·</span>coming
       </Link>

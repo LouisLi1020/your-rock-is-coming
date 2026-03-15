@@ -21,17 +21,17 @@ Sydney tennis players face a **fragmented ecosystem**:
 ---
 
 ## Demo
- 
+
 ### Main Page
 Discover everything tennis in Sydney — search and filter courts, explore the map, and get a snapshot of available venues at a glance.
- 
-![Main page](https://github.com/LouisLi1020/your-rock-is-coming/blob/main/assets/discover.png)
- 
+
+![Main page](assets/discover.png)
+
 ### Booking Page
 A full booking flow in one place — select your court, pick a date and time slot, and see **rain chance** and **dryness index** before you confirm, so you never get caught off guard.
- 
-![Booking page](https://github.com/LouisLi1020/your-rock-is-coming/blob/main/assets/book.png)
- 
+
+![Booking page](assets/book.png)
+
 ---
 
 ## Features
@@ -80,6 +80,16 @@ npm run dev
 
 Open **http://localhost:3000**. The app uses **mock venue data** and **localStorage** for bookings when the backend is not running (no need to start the server).
 
+### SQLite / Node (staying with SQLite)
+
+We keep **SQLite (better-sqlite3)** for the backend. If you see **"could not find the binding file"** or node-gyp errors (common on Windows), use **Node 20+** and run:
+
+```bash
+rm -rf node_modules && npm install
+```
+
+from the repo root (and run `rm -rf node_modules && npm install` inside `frontend/` if needed). Using the same Node version for both install and run avoids binding mismatches. On Windows, [WSL](https://docs.microsoft.com/en-us/windows/wsl/) or a Mac/Linux environment often avoids node-gyp issues.
+
 ---
 
 ## Project structure
@@ -106,7 +116,10 @@ Open **http://localhost:3000**. The app uses **mock venue data** and **localStor
 
 ---
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 9050cc0 (fix: z-index layering (nav above filters, sidebar on top, View full map above map))
 ## Backend API
 
 ### Courts
@@ -165,6 +178,7 @@ Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns 
 - Push notifications for weather changes
 - Social features — play with friends, find hitting partners
 
+<<<<<<< HEAD
 ---
 
 ## Acknowledgements
@@ -174,3 +188,29 @@ Optional: set `OPENWEATHER_API_KEY` for live weather; otherwise backend returns 
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — fast synchronous SQLite for Node
 
+=======
+## Roadmap
+
+### ✅ Built at UniHack 2026
+- Court discovery with search, filters, and map
+- Weather-aware booking flow (7-day forecast + rain warnings)
+- Calendar-based time slot selection
+- Booking management (create + cancel)
+- Dual-mode: full stack or frontend-only demo
+
+### 🔲 Future
+- Coach matching and session booking
+- Payment integration
+- User accounts and booking history
+- Push notifications for weather changes
+- Social features — play with friends, find hitting partners
+
+---
+
+## Acknowledgements
+
+- [Open-Meteo](https://open-meteo.com/) — free weather API, no key required
+- [Leaflet](https://leafletjs.com/) / [react-leaflet](https://react-leaflet.js.org/) — interactive maps
+- [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — fast synchronous SQLite for Node
+>>>>>>> 9050cc0 (fix: z-index layering (nav above filters, sidebar on top, View full map above map))
